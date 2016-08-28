@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/IFFConversionLibrary/iff-conversion-library.iml" filepath="$PROJECT_DIR$/IFFConversionLibrary/iff-conversion-library.iml" />
+      <module fileurl="file://$PROJECT_DIR$/IFFConversionOnSpark/iff-conversion-on-spark.iml" filepath="$PROJECT_DIR$/IFFConversionOnSpark/iff-conversion-on-spark.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/source.iml" filepath="$PROJECT_DIR$/.idea/source.iml" />
+    </modules>
+  </component>
+</project>

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.visionsky</groupId>
+    <artifactId>boc-hk-parent</artifactId>
+    <version>1.0</version>
+    <modules>
+        <module>IFFConversionLibrary</module>
+        <module>IFFConversionOnSpark</module>
+    </modules>
+    <packaging>pom</packaging>
+
+    <prerequisites>
+        <maven>3.0.4</maven>
+    </prerequisites>
+
+    <properties>
+        <maven.compiler.plugin.version>3.5.1</maven.compiler.plugin.version>
+        <maven.assembly.plugin.version>2.3</maven.assembly.plugin.version>
+        <maven.jar.plugin.version>2.5</maven.jar.plugin.version>
+        <maven.war.plugin.version>2.2</maven.war.plugin.version>
+        <maven.install.plugin.version>2.4</maven.install.plugin.version>
+        <java.source.encoding>UTF-8</java.source.encoding>
+        <java.source.version>1.7</java.source.version>
+        <java.target.version>1.7</java.target.version>
+        <curator.version>2.7.1</curator.version>
+        <spring.version>4.1.0.RELEASE</spring.version>
+        <hadoop.version>2.2.0</hadoop.version>
+        <hive.version>1.2.1</hive.version>
+        <scala.version>2.10.4</scala.version>
+        <spark.scala.version>2.10</spark.scala.version>
+        <spark.version>1.6.0</spark.version>
+        <exclude.tests>no-exclusions</exclude.tests>
+
+        <default.main.common.resources.dir>${project.basedir}/src/main/resources/common</default.main.common.resources.dir>
+        <default.test.common.resources.dir>${project.basedir}/src/test/resources/common</default.test.common.resources.dir>
+    </properties>
+
+
+    <profiles>
+        <profile>
+            <id>Windows</id>
+            <properties>
+                <maven.datanucleus.plugin.fork>false</maven.datanucleus.plugin.fork>
+            </properties>
+            <activation>
+                <os>
+                    <family>Windows</family>
+                </os>
+            </activation>
+        </profile>
+        <profile>
+            <id>Linux</id>
+            <properties>
+                <maven.datanucleus.plugin.fork>true</maven.datanucleus.plugin.fork>
+            </properties>
+            <activation>
+                <os>
+                    <family>Linux</family>
+                </os>
+            </activation>
+        </profile>
+        <profile>
+            <id>develop</id>
+            <properties>
+                <default.main.special.resources.dir>${project.basedir}/src/main/resources/debug</default.main.special.resources.dir>
+                <default.test.special.resources.dir>${project.basedir}/src/test/resources/debug</default.test.special.resources.dir>
+            </properties>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+        <profile>
+            <id>product</id>
+            <properties>
+                <default.main.special.resources.dir>${project.basedir}/src/main/resources/product</default.main.special.resources.dir>
+                <default.test.special.resources.dir>${project.basedir}/src/test/resources/product</default.test.special.resources.dir>
+            </properties>
+        </profile>
+    </profiles>
+
+</project>
