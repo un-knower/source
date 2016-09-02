@@ -174,7 +174,23 @@ object FieldValidator extends FieldsCheck {
   }
 
   def validatCDate(fieldType: CDate,fieldValue: String):Boolean={
-    validatBase(fieldType,fieldValue)&&checkDate(fieldValue,fieldType.pattern)
+    var pattern:String = null;
+    if(fieldType.pattern!=null){
+      pattern = fieldType.pattern;
+    }else{
+      val regx1 = """(\d{4}-\d{2}-\d{2})""".r
+      val regx2 = """(\d{4}/\d{2}/\d{2})""".r
+      val regx3 = """(\d{4}-\d{1,2}-\d{1,2})""".r
+      val regx4 = """(\d{4}年\d{1,2}月\d{1,2}日)""".r
+      pattern = fieldValue match{
+        case regx1(date) => "yyyy-MM-dd"
+        case regx2(date) => "yyyy/MM/dd"
+        case regx3(date) => "yyyy-M-d"
+        case regx4(date) => "yyyy年M月d日"
+        case _ => "yyyyMMdd"
+      }
+    }
+    validatBase(fieldType,fieldValue)&&checkDate(fieldValue,pattern)
   }
 
   def validatCTime(fieldType: CTime, fieldValue: String):Boolean={
