@@ -1,8 +1,8 @@
 package com.boc.iff
 
-import java.io.{BufferedReader, FileInputStream, InputStreamReader}
+import java.io.FileInputStream
 import java.util.Properties
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{LinkedBlockingQueue, Future => JFuture}
 import java.util.zip.GZIPInputStream
 
 import com.boc.iff.DFSUtils.FileMode
@@ -11,14 +11,16 @@ import com.boc.iff.model._
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.spark.rdd.RDD
+import org.apache.spark.storage.StorageLevel
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 
-class BOCConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig {
+class IFFConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig {
 
   var iffFileMode: DFSUtils.FileMode.ValueType = DFSUtils.FileMode.LOCAL
   var maxBlockSize: Int = -1                                                //最大每次读取文件的块大小
@@ -47,8 +49,8 @@ class BOCConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig
   }
 }
 
-class BOCConversionOnSparkJob
-  extends IFFConversion[BOCConversionOnSparkConfig] with SparkJob[BOCConversionOnSparkConfig] {
+class IFFConversionOnSparkJob
+  extends IFFConversion[IFFConversionOnSparkConfig] with SparkJob[IFFConversionOnSparkConfig] {
 
   protected def deleteTargetDir(): Unit = {
     logger.info(MESSAGE_ID_CNV1001, "Auto Delete Target Dir: " + iffConversionConfig.datFileOutputPath)
@@ -118,7 +120,6 @@ class BOCConversionOnSparkJob
   }
 
   override protected def openIFFFileInputStream(fileName: String): java.io.InputStream = {
-    logger.info("fileName",fileName)
     iffConversionConfig.iffFileMode match {
       case FileMode.LOCAL => super.openIFFFileInputStream(fileName)
       case FileMode.DFS =>
@@ -131,38 +132,37 @@ class BOCConversionOnSparkJob
 
   protected def createBlockPositionQueue: java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
     //块大小至少要等于数据行大小
-    val blockSize = math.max(iffConversionConfig.blockSize, 0)
+    val blockSize = math.max(iffConversionConfig.blockSize, iffFileInfo.recordLength+1)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
+    val recordBuffer = new Array[Byte](iffFileInfo.recordLength+1)//把换行符号也读入到缓冲byte
     var totalBlockReadBytesCount: Long = 0
-    val iffFileInputStream = openIFFFileInputStream(iffConversionConfig.iffFileInputPath+iffConversionConfig.filename)
+    val iffFileInputStream = openIFFFileBufferedInputStream(
+      iffConversionConfig.iffFileInputPath, iffFileInfo.isGzip, iffConversionConfig.readBufferSize)
     var blockIndex: Int = 0
     var endOfFile = false
-    val br = new BufferedReader(new InputStreamReader(iffFileInputStream.asInstanceOf[java.io.InputStream]))
-    var currentLineLength: Int = 0
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
       var canRead = true
-      currentBlockReadBytesCount += currentLineLength
       while (canRead) {
-        val lineStr = br.readLine();
-        if(lineStr!=null){
-          currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length
-           logger.info("block Info","第"+blockIndex+"块"+currentLineLength)
-          if (endOfFile || (currentBlockReadBytesCount+currentLineLength) > blockSize) {
-            canRead = false
-          }else{
-            currentBlockReadBytesCount += currentLineLength
-          }
-        }else {
+        val length = iffFileInputStream.read(recordBuffer)
+        if (length != -1) {
+          currentBlockReadBytesCount += recordBuffer.length
+        } else {
           endOfFile = true
+        }
+        //当文件读完，或者已读取一个块大小的数据（若再读一行则超过块大小）的时候，跳出循环
+        if (endOfFile || blockSize - currentBlockReadBytesCount < recordBuffer.length) {
           canRead = false
         }
       }
       val blockPosition: (Int, Long, Int) = (blockIndex, totalBlockReadBytesCount, currentBlockReadBytesCount)
+      logger.debug(MESSAGE_ID_CNV1001,
+        "Block Index: %-5d, Position: %-10d, Size: %-10d".format(blockPosition._1, blockPosition._2, blockPosition._3))
       blockPositionQueue.put(blockPosition)
       totalBlockReadBytesCount += currentBlockReadBytesCount
       blockIndex += 1
     }
+    iffFileInputStream.close()
     blockPositionQueue
   }
 
@@ -176,7 +176,6 @@ class BOCConversionOnSparkJob
     val iffMetadata = this.iffMetadata
     val iffFileInfo = this.iffFileInfo
     val fieldDelimiter = this.fieldDelimiter
-    val lineSplit = iffMetadata.srcSeparator
     implicit val configuration = sparkContext.hadoopConfiguration
     val hadoopConfigurationMap = mutable.HashMap[String,String]()
     val iterator = configuration.iterator()
@@ -188,7 +187,6 @@ class BOCConversionOnSparkJob
     }
     val iffFileInputPathText = iffConversionConfig.iffFileInputPath
     val readBufferSize = iffConversionConfig.readBufferSize
-
 
     val convertByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = { blockPositionIterator =>
       val logger = new ECCLogger()
@@ -204,7 +202,7 @@ class BOCConversionOnSparkJob
         对一个字段的数据进行转换操作
         为了减少层次，提高程序可读性，这里定义了一个闭包方法作为参数，会在下面的 while 循环中被调用
        */
-      val convertField: (IFFField, String)=> String = { (iffField, record) =>
+      val convertField: (IFFField, mutable.HashMap[String,String])=> String = { (iffField, record) =>
         if (iffField.isFiller) ""
         else if (iffField.isConstant) {
           iffField.getDefaultValue.replaceAll("#FILENAME#", iffFileInfo.fileName)
@@ -223,6 +221,7 @@ class BOCConversionOnSparkJob
           }
         }
       }
+
       val configuration = new YarnConfiguration()
       for((key,value)<-hadoopConfigurationMap){
         configuration.set(key, value)
@@ -233,48 +232,52 @@ class BOCConversionOnSparkJob
       val iffFileSourceInputStream =
         if(iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
         else iffFileInputStream
-      val br = new BufferedReader(new InputStreamReader(iffFileInputStream.asInstanceOf[java.io.InputStream],charset))
-      logger.info("blockPositionIterator:","blockPositionIterator"+charset)
 
       while(blockPositionIterator.hasNext){
         val (blockIndex, blockPosition, blockSize) = blockPositionIterator.next()
-        logger.info("blockPositionIterator.hasNext:","blockPositionIterator.hasNext")
         var currentBlockReadBytesCount: Long = 0
         var restToSkip = blockPosition
         while (restToSkip > 0) {
-          val skipped = br.skip(restToSkip)
+          val skipped = iffFileSourceInputStream.skip(restToSkip)
           restToSkip = restToSkip - skipped
         }
         val recordBytes = new Array[Byte](iffFileInfo.recordLength)
         while ( currentBlockReadBytesCount < blockSize ) {
-          val currentLine = br.readLine()
-          logger.info("currentLine:","currentLine"+currentLine)
-          var recordLength: Int = currentLine.getBytes(iffMetadata.sourceCharset).length
-          val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(currentLine,lineSplit)
-          val dataInd = 0;
-          val dataMap = mutable.HashMap[String,String]
+          var recordLength: Int = 0
+          while (recordLength < iffFileInfo.recordLength){
+            val readLength = iffFileSourceInputStream.read(
+              recordBytes, recordLength, iffFileInfo.recordLength - recordLength)
+            if(readLength == -1) {
+              recordLength = iffFileInfo.recordLength
+            }else {
+              recordLength += readLength
+            }
+          }
+
+          var dataInd = 0
+          val dataMap = new mutable.HashMap[String,String]
           for (iffField <- iffMetadata.body.fields ) {
-            dataMap += (iffField.name,lineSeq[dataInd])
+            val fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes,iffField.startPos ,iffField.endPos+1),iffMetadata.sourceCharset)
+            dataMap += (iffField.name -> fieldVal)
             dataInd += 1
           }
 
+
           val sb = new mutable.StringBuilder(recordBytes.length)
-          var index = 0
           var success = true
           import com.boc.iff.CommonFieldValidatorContext._
           implicit val validContext = new CommonFieldValidatorContext
           for (iffField <- iffMetadata.body.fields if success) {
-            sb ++= convertField(iffField, lineSeq(index)) //调用上面定义的闭包方法转换一个字段的数据
+            sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
             sb ++= fieldDelimiter
-            success = if(iffField.validateField(lineSeq(index))) true else false
-            index += 1
+            success = if(iffField.validateField(dataMap))true else false
           }
 
 
           if(!success){
             sb.setLength(0)
-            sb.append(currentLine).append(lineSplit).append("ERROR validateField")
-            logger.error("ERROR validateField",currentLine)
+            sb.append(new String(recordBytes,iffMetadata.sourceCharset)).append("ERROR validateField")
+            logger.error("ERROR validateField",new String(recordBytes,iffMetadata.sourceCharset))
           }
           recordList += sb.toString
           currentBlockReadBytesCount += recordLength
@@ -292,10 +295,6 @@ class BOCConversionOnSparkJob
     val fileSystem = FileSystem.get(configuration)
     val blockPositionQueue = createBlockPositionQueue
     val convertByPartitions = createConvertOnDFSByPartitionsFunction
-    logger.info("psk","********************run after createConvertOnDFSByPartitionsFunction")
-
-
-
     val tempDir = getTempDir
     DFSUtils.deleteDir(tempDir)
     val conversionJob: (Unit=>String) = { _=>
@@ -318,10 +317,7 @@ class BOCConversionOnSparkJob
       }
       tempOutputDir
     }
-    logger.info("blockPositionQueue.size()1",blockPositionQueue.size().toString)
-    conversionJob()
-    logger.info("blockPositionQueue.size()2",blockPositionQueue.size().toString)
-    /*val futureQueue = mutable.Queue[Future[String]]()
+    val futureQueue = mutable.Queue[Future[String]]()
     for(index<-(0 until blockPositionQueue.size()).view){
       val conversionFuture = future { conversionJob() }
       futureQueue.enqueue(conversionFuture)
@@ -329,7 +325,7 @@ class BOCConversionOnSparkJob
     while(futureQueue.nonEmpty){
       val future = futureQueue.dequeue()
       Await.ready(future, Duration.Inf)
-    }*/
+    }
     DFSUtils.deleteDir(tempDir)
   }
 
@@ -390,16 +386,17 @@ class BOCConversionOnSparkJob
       classOf[IFFFieldType], classOf[FormatSpec], classOf[ACFormat], classOf[StringAlign])
   }
 
-  override protected def runOnSpark(jobConfig: BOCConversionOnSparkConfig): Unit = {
+  override protected def runOnSpark(jobConfig: IFFConversionOnSparkConfig): Unit = {
     run(jobConfig)
   }
 }
+
 /**
   *  Spark 程序入口
   */
-object BOCConversionOnSpark extends App{
-  val config = new BOCConversionOnSparkConfig()
-  val job = new BOCConversionOnSparkJob()
+object IFFConversionOnSpark extends App{
+  val config = new IFFConversionOnSparkConfig()
+  val job = new IFFConversionOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)
