@@ -2,6 +2,8 @@ package com.boc.iff
 
 import com.boc.iff.model._
 
+import scala.collection.mutable.HashMap
+
 /**
   * Created by cvinc on 2016/6/8.
   */
@@ -12,9 +14,10 @@ class CommonFieldValidatorContext() extends Serializable {
     validator.validate(fieldType, fieldValue)
   }
 
-  def validateField(iffField: IFFField, fieldValue: String) = {
+  def validateField(iffField: IFFField, fieldValues: HashMap[String,String]) = {
     val fieldType = iffField.typeInfo
-    fieldType match {
+    val fieldValue = fieldValues.getOrElse(iffField.name, "")
+    val normalCheck = fieldType match {
       case fieldType@IFFDate() => validate(fieldType, fieldValue)
       case fieldType@IFFTime() => validate(fieldType, fieldValue)
       case fieldType@IFFTimestamp() => validate(fieldType, fieldValue)
@@ -36,6 +39,8 @@ class CommonFieldValidatorContext() extends Serializable {
       case fieldType@CTimestamp() => validate(fieldType, fieldValue)
       case _ =>validate(CString(), fieldValue)
     }
+    val expressionCheck = FieldValidator.validatExpression(iffField.validators,fieldValues)
+    expressionCheck && normalCheck
   }
 }
 
@@ -43,7 +48,7 @@ sealed trait CommonFieldWithValidator {
   protected val commonFieldValidatorContext: CommonFieldValidatorContext = null
   protected val iffField: IFFField = null
 
-  def validateField(fieldValue:String) = {
+  def validateField(fieldValue:HashMap[String,String]) = {
     commonFieldValidatorContext.validateField(iffField, fieldValue)
   }
 

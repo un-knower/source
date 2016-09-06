@@ -1,9 +1,12 @@
 package com.boc.iff.model
 
+import java.util
+
 import com.boc.iff.FormatSpec
 
 import scala.beans.{BeanProperty, BooleanBeanProperty}
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.math.Ordering
 
 /**
@@ -43,7 +46,13 @@ class IFFField extends Serializable {
   var defaultValue: String = ""
 
   @BeanProperty
+  var expression: String = ""
+
+  @BeanProperty
   var formatSpec: FormatSpec = _
+
+  @BeanProperty
+  var validators: java.util.List[String] = new util.ArrayList[String]
 
   def toXMLString: String = {
     val sb = new StringBuilder
@@ -56,6 +65,7 @@ class IFFField extends Serializable {
     sb ++= ("<property name=\"required\" value=\"" + (if (required) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"constant\" value=\"" + (if (constant) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"nullValue\" value=\"" + nullValue + "\"/>")
+    sb ++= ("<property name=\"expression\" value=\"" + expression + "\"/>")
     sb ++= ("<property name=\"defaultValue\" value=\"" + defaultValue + "\"/>")
     if (formatSpec != null) {
       sb ++= "<property name=\"formatSpec\">"
@@ -76,6 +86,7 @@ class IFFField extends Serializable {
       "constant" -> constant,
       "nullValue" -> nullValue,
       "defaultValue" -> defaultValue,
+      "expression" -> expression,
       "formatSpec" -> formatSpec
     )
     val sb = new StringBuilder()

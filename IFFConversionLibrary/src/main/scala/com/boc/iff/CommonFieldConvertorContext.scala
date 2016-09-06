@@ -3,6 +3,10 @@ package com.boc.iff
 import java.nio.charset.CharsetDecoder
 
 import com.boc.iff.model._
+import org.apache.commons.lang3.StringUtils
+
+import scala.collection.mutable
+
 
 /**
   * Created by cvinc on 2016/6/8.
@@ -14,8 +18,12 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
     convertor.convert(fieldType, fieldValue, decoder)
   }
 
-  def convert(iffField: IFFField, fieldValue: String): String = {
+  def convert(iffField: IFFField, fieldValues: mutable.HashMap[String,String]): String = {
     val fieldType = iffField.typeInfo
+    var fieldValue = fieldValues(iffField.name)
+    if(StringUtils.isNotEmpty(iffField.expression)){
+      fieldValue = "";
+    }
     fieldType match {
       case fieldType@IFFDate() => convert(fieldType, fieldValue)
       case fieldType@IFFTime() => convert(fieldType, fieldValue)
@@ -44,7 +52,7 @@ sealed trait CommonFieldWithConvertor {
   protected val commonFieldConvertorContext: CommonFieldConvertorContext = null
   protected val iffField: IFFField = null
 
-  def convert(fieldValue: String): String = {
+  def convert(fieldValue: mutable.HashMap[String,String]): String = {
     commonFieldConvertorContext.convert(iffField, fieldValue)
   }
 

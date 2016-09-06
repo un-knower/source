@@ -139,19 +139,29 @@ class BOCConversionOnSparkJob
     var endOfFile = false
     val br = new BufferedReader(new InputStreamReader(iffFileInputStream.asInstanceOf[java.io.InputStream]))
     var currentLineLength: Int = 0
+    var countLineNumber: Int = 0
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
       var canRead = true
       currentBlockReadBytesCount += currentLineLength
       while (canRead) {
-        val lineStr = br.readLine();
+        val lineStr = br.readLine()
+        countLineNumber += 1
         if(lineStr!=null){
-          currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length
-           logger.info("block Info","第"+blockIndex+"块"+currentLineLength)
-          if (endOfFile || (currentBlockReadBytesCount+currentLineLength) > blockSize) {
-            canRead = false
+          if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
+            val recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
+            if(recNum.toInt!=countLineNumber){
+              logger.error("file number is not right","file "+iffConversionConfig.filename+ " number is not right ")
+              sys.exit(0)
+            }
           }else{
-            currentBlockReadBytesCount += currentLineLength
+            currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length
+            logger.info("block Info","第"+blockIndex+"块"+currentLineLength)
+            if (endOfFile || (currentBlockReadBytesCount+currentLineLength) > blockSize) {
+              canRead = false
+            }else{
+              currentBlockReadBytesCount += currentLineLength
+            }
           }
         }else {
           endOfFile = true
@@ -204,7 +214,7 @@ class BOCConversionOnSparkJob
         对一个字段的数据进行转换操作
         为了减少层次，提高程序可读性，这里定义了一个闭包方法作为参数，会在下面的 while 循环中被调用
        */
-      val convertField: (IFFField, String)=> String = { (iffField, record) =>
+      val convertField: (IFFField, mutable.HashMap[String,String])=> String = { (iffField, record) =>
         if (iffField.isFiller) ""
         else if (iffField.isConstant) {
           iffField.getDefaultValue.replaceAll("#FILENAME#", iffFileInfo.fileName)
@@ -245,29 +255,26 @@ class BOCConversionOnSparkJob
           val skipped = br.skip(restToSkip)
           restToSkip = restToSkip - skipped
         }
-        val recordBytes = new Array[Byte](iffFileInfo.recordLength)
         while ( currentBlockReadBytesCount < blockSize ) {
           val currentLine = br.readLine()
           logger.info("currentLine:","currentLine"+currentLine)
           var recordLength: Int = currentLine.getBytes(iffMetadata.sourceCharset).length
           val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(currentLine,lineSplit)
-          val dataInd = 0;
-          val dataMap = mutable.HashMap[String,String]
+          var dataInd = 0
+          val dataMap = new mutable.HashMap[String,String]
           for (iffField <- iffMetadata.body.fields ) {
-            dataMap += (iffField.name,lineSeq[dataInd])
+            dataMap += (iffField.name -> lineSeq(dataInd))
             dataInd += 1
           }
 
-          val sb = new mutable.StringBuilder(recordBytes.length)
-          var index = 0
+          val sb = new mutable.StringBuilder(recordLength)
           var success = true
           import com.boc.iff.CommonFieldValidatorContext._
           implicit val validContext = new CommonFieldValidatorContext
           for (iffField <- iffMetadata.body.fields if success) {
-            sb ++= convertField(iffField, lineSeq(index)) //调用上面定义的闭包方法转换一个字段的数据
+            sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
             sb ++= fieldDelimiter
-            success = if(iffField.validateField(lineSeq(index))) true else false
-            index += 1
+            success = if(iffField.validateField(dataMap))true else false
           }
 
 
@@ -305,7 +312,14 @@ class BOCConversionOnSparkJob
       val convertedRecords = rdd.mapPartitions(convertByPartitions)
       val tempOutputDir = "%s/%05d".format(tempDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
-      convertedRecords.saveAsTextFile(tempOutputDir)
+      val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR validateField")).count()
+      if(errorRecordNumber>iffConversionConfig.fileMaxError){
+        convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
+        sys.exit(0)
+      }
+      convertedRecords.filter(!_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
+      convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
+
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
       for (fileStatusIndex <- fileStatusArray.indices.view) {
         val fileStatus = fileStatusArray(fileStatusIndex)

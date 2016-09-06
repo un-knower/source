@@ -28,6 +28,8 @@ class IFFConversionConfig extends AppConfig {
   var tempDir: String = "/tmp/birdie/IFFConversion"                         //临时目录
   var noPatchSchema: Boolean = false                                        //不进行xml数据列修正和数据库列修正
   var filename: String = ""                                                 //文件名称
+  var fileEOFPrefix: String = ""                                            //文件结尾标识符
+  var fileMaxError: Long = 100                                               //最大文件错误条数
   private val dateFormat = new SimpleDateFormat(ACCOUNT_DATE_PATTERN)
 
   /**
@@ -88,6 +90,9 @@ class IFFConversionConfig extends AppConfig {
     optionParser.opt[Unit]("no-patch-schema")
       .text("No Patch Schema")
       .foreach {x=> this.noPatchSchema = true}
+    optionParser.opt[String]("dat-file-eof-prefix")
+      .text("DAT File EOF prefix")
+      .foreach(this.fileEOFPrefix = _)
   }
 
   override def toString = {
