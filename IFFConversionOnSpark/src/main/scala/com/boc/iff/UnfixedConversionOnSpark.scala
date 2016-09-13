@@ -18,7 +18,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration.Duration
 
-class BOCConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig {
+class UnfixedConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig {
 
   var iffFileMode: DFSUtils.FileMode.ValueType = DFSUtils.FileMode.LOCAL
   var maxBlockSize: Int = -1                                                //最大每次读取文件的块大小
@@ -47,8 +47,8 @@ class BOCConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig
   }
 }
 
-class BOCConversionOnSparkJob
-  extends IFFConversion[BOCConversionOnSparkConfig] with SparkJob[BOCConversionOnSparkConfig] {
+class UnfixedConversionOnSparkJob
+  extends IFFConversion[UnfixedConversionOnSparkConfig] with SparkJob[UnfixedConversionOnSparkConfig] {
 
   protected def deleteTargetDir(): Unit = {
     logger.info(MESSAGE_ID_CNV1001, "Auto Delete Target Dir: " + iffConversionConfig.datFileOutputPath)
@@ -58,6 +58,13 @@ class BOCConversionOnSparkJob
 
   protected def getTempDir: String = {
     iffConversionConfig.tempDir + "/" + StringUtils.split(iffConversionConfig.iffFileInputPath, "/").last
+  }
+
+  protected def getErrorFileDir: String = {
+    val filePath = iffConversionConfig.errorFilDir + "/" + iffConversionConfig.iTableName
+    implicit val configuration = sparkContext.hadoopConfiguration
+    DFSUtils.createDir(filePath)
+    filePath
   }
 
   /**
@@ -146,13 +153,14 @@ class BOCConversionOnSparkJob
       currentBlockReadBytesCount += currentLineLength
       while (canRead) {
         val lineStr = br.readLine()
-        countLineNumber += 1
         if(lineStr!=null){
-          if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
-            val recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
-            if(recNum.toInt!=countLineNumber){
-              logger.error("file number is not right","file "+iffConversionConfig.filename+ " number is not right ")
-              sys.exit(0)
+          if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix)){
+            if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
+              val recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
+              if(recNum.toInt!=countLineNumber){
+                logger.error("file "+iffConversionConfig.filename+ " number is not right "+recNum.toInt+countLineNumber,"file number is not right")
+                sys.exit(0)
+              }
             }
           }else{
             currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length
@@ -162,6 +170,7 @@ class BOCConversionOnSparkJob
             }else{
               currentBlockReadBytesCount += currentLineLength
             }
+            countLineNumber += 1
           }
         }else {
           endOfFile = true
@@ -300,25 +309,28 @@ class BOCConversionOnSparkJob
     val blockPositionQueue = createBlockPositionQueue
     val convertByPartitions = createConvertOnDFSByPartitionsFunction
     logger.info("psk","********************run after createConvertOnDFSByPartitionsFunction")
-
+    val countList = new mutable.HashMap[String,Long] //with mutable.SynchronizedMap[String,Long]
 
 
     val tempDir = getTempDir
+    val errorDir = getErrorFileDir
     DFSUtils.deleteDir(tempDir)
+    DFSUtils.deleteDir(errorDir)
     val conversionJob: (Unit=>String) = { _=>
       val blockPosition = blockPositionQueue.take()
       val blockIndex = blockPosition._1
+      logger.info("blockIndex",blockIndex.toString)
       val rdd = sparkContext.makeRDD(Seq(blockPosition), 1)
       val convertedRecords = rdd.mapPartitions(convertByPartitions)
       val tempOutputDir = "%s/%05d".format(tempDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
       val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR validateField")).count()
-      if(errorRecordNumber>iffConversionConfig.fileMaxError){
-        convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
-        sys.exit(0)
+      countList.synchronized{
+        countList += blockIndex.toString->errorRecordNumber
       }
       convertedRecords.filter(!_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
-      convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
+      convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(errorDir)
+      logger.info("tempOutputDir",tempOutputDir+"error/"+errorDir+convertedRecords.filter(_.endsWith("ERROR validateField")).count())
 
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
       for (fileStatusIndex <- fileStatusArray.indices.view) {
@@ -328,6 +340,7 @@ class BOCConversionOnSparkJob
           else "%s/%05d-%05d".format(iffConversionConfig.datFileOutputPath, blockIndex, fileStatusIndex)
         val srcPath = fileStatus.getPath
         val dstPath = new Path(fileName)
+        logger.info("fileName**********************",fileName+"***"+srcPath)
         DFSUtils.moveFile(srcPath, dstPath)
       }
       tempOutputDir
@@ -335,6 +348,10 @@ class BOCConversionOnSparkJob
     logger.info("blockPositionQueue.size()1",blockPositionQueue.size().toString)
     conversionJob()
     logger.info("blockPositionQueue.size()2",blockPositionQueue.size().toString)
+    val errorRec = countList.values.foldLeft(0L)(_+_)
+    if(errorRec>iffConversionConfig.fileMaxError){
+      sys.exit(0)
+    }
     /*val futureQueue = mutable.Queue[Future[String]]()
     for(index<-(0 until blockPositionQueue.size()).view){
       val conversionFuture = future { conversionJob() }
@@ -404,16 +421,16 @@ class BOCConversionOnSparkJob
       classOf[IFFFieldType], classOf[FormatSpec], classOf[ACFormat], classOf[StringAlign])
   }
 
-  override protected def runOnSpark(jobConfig: BOCConversionOnSparkConfig): Unit = {
+  override protected def runOnSpark(jobConfig: UnfixedConversionOnSparkConfig): Unit = {
     run(jobConfig)
   }
 }
 /**
   *  Spark 程序入口
   */
-object BOCConversionOnSpark extends App{
-  val config = new BOCConversionOnSparkConfig()
-  val job = new BOCConversionOnSparkJob()
+object UnfixedConversionOnSpark extends App{
+  val config = new UnfixedConversionOnSparkConfig()
+  val job = new UnfixedConversionOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)
