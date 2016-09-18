@@ -4,6 +4,8 @@ import java.text.SimpleDateFormat
 
 import com.boc.iff.model.{CDate, CDecimal, CInteger, CTime, CTimestamp, IFFDecimalType, IFFFieldType, IFFMaxlengthType}
 import org.apache.commons.lang.StringUtils
+
+import scala.collection.mutable
 /**
   * Created by birdie on 8/25/16.
   */
@@ -199,6 +201,10 @@ object FieldValidator extends FieldsCheck {
 
   def validatCTimestamp(fieldType: CTimestamp, fieldValue: String):Boolean={
     validatBase(fieldType,fieldValue)&&checkDate(fieldValue,fieldType.pattern)
+  }
+
+  def validatExpression(list: java.util.List[String],hashMap: mutable.HashMap[String,String]):Boolean={
+    true
   }
 
 

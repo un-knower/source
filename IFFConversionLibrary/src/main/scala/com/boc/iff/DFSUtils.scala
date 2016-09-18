@@ -43,4 +43,18 @@ object DFSUtils {
     }
   }
 
+  def checkDir(path: String)(implicit configuration: Configuration): Boolean = {
+    var fieExist = false
+    val fileSystem = FileSystem.get(configuration)
+    val fsPath = new Path(path)
+    if(fileSystem.exists(fsPath)){
+      fieExist = true
+    }
+    fieExist
+  }
+
+  def createDir(path: String)(implicit configuration: Configuration): Unit = {
+    if(!checkDir(path))FileSystem.get(configuration).mkdirs(new Path(path))
+  }
+
 }

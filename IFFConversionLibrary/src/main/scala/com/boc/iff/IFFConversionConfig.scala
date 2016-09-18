@@ -26,8 +26,11 @@ class IFFConversionConfig extends AppConfig {
   var autoDeleteTargetDir: Boolean = true                                   //作业开始前是否自动清空目标目录, 默认 清空
   var readBufferSize: Int = 8 * 1024 * 1024                                 //文件读取缓冲区大小, 默认 8M
   var tempDir: String = "/tmp/birdie/IFFConversion"                         //临时目录
+  var errorFilDir: String = "/tmp/birdie/Bocsz/Error"                       //错误记录存放目录
   var noPatchSchema: Boolean = false                                        //不进行xml数据列修正和数据库列修正
   var filename: String = ""                                                 //文件名称
+  var fileEOFPrefix: String = ""                                            //文件结尾标识符
+  var fileMaxError: Long = 100                                               //最大文件错误条数
   private val dateFormat = new SimpleDateFormat(ACCOUNT_DATE_PATTERN)
 
   /**
@@ -65,6 +68,9 @@ class IFFConversionConfig extends AppConfig {
     optionParser.opt[String]("dat-file-output-path")
       .text("DAT File Output Path")
       .foreach(this.datFileOutputPath = _)
+    optionParser.opt[String]("dat-file-erorr-path")
+      .text("DAT File ERROR Output Path")
+      .foreach(this.errorFilDir = _)
     optionParser.opt[String]("iff-file-input-filename")
       .text("DAT File Name")
       .foreach(this.filename = _)
@@ -88,6 +94,12 @@ class IFFConversionConfig extends AppConfig {
     optionParser.opt[Unit]("no-patch-schema")
       .text("No Patch Schema")
       .foreach {x=> this.noPatchSchema = true}
+    optionParser.opt[String]("dat-file-eof-prefix")
+      .text("DAT File EOF prefix")
+      .foreach(this.fileEOFPrefix = _)
+    optionParser.opt[Long]("dat-file-fileMaxError-number")
+      .text("DAT File fileMaxError Number")
+      .foreach(this.fileMaxError = _)
   }
 
   override def toString = {
