@@ -12,8 +12,8 @@ class DataProcessConfig extends AppConfig{
   var configFilePath: String = ""                                           //配置文件路径
   var metadataFilePath: String = ""                                         //XML 描述文件路径
   var metadataFileEncoding: String = "UTF-8"                                //XML 描述文件编码
-  var iffFileInputPath: String = ""                                         //IFF 文件路径
-  var datFileOutputPath: String = ""                                        //转换后文件输出路径
+  var dataFileInputPath: String = ""                                         //IFF 文件路径
+  var dataFileOutputPath: String = ""                                        //转换后文件输出路径
   var accountDate: Date = null                                              //会计日
   var blockSize: Int = 1024 * 1024 * 1024                                   //每次读取文件的块大小, 默认 1G
   var sliceSize: Int = 100 * 1024                                           //每个分片大小, 默认 100K
@@ -55,14 +55,14 @@ class DataProcessConfig extends AppConfig{
     optionParser.opt[String]("metadata-file-encoding")
       .text("Metadata File Encoding")
       .foreach(this.metadataFileEncoding = _)
-    optionParser.opt[String]("iff-file-input-path")
+    optionParser.opt[String]("dat-file-input-path")
       .required()
-      .text("IFF File Input Path")
-      .foreach(this.iffFileInputPath = _)
+      .text("DAT File Input Path")
+      .foreach(this.dataFileInputPath = _)
     optionParser.opt[String]("dat-file-output-path")
       .text("DAT File Output Path")
-      .foreach(this.datFileOutputPath = _)
-    optionParser.opt[String]("iff-file-input-filename")
+      .foreach(this.dataFileOutputPath = _)
+    optionParser.opt[String]("dat-file-input-filename")
       .text("DAT File Name")
       .foreach(this.filename = _)
     optionParser.opt[String]("db-name")
@@ -97,8 +97,8 @@ class DataProcessConfig extends AppConfig{
     builder ++= "Config File Path: %s\n".format(configFilePath)
     builder ++= "Metadata File Path: %s\n".format(metadataFilePath)
     builder ++= "Metadata File Encoding: %s\n".format(metadataFileEncoding)
-    builder ++= "IFF File Input Path: %s\n".format(iffFileInputPath)
-    builder ++= "DAT File Output Path: %s\n".format(datFileOutputPath)
+    builder ++= "IFF File Input Path: %s\n".format(dataFileInputPath)
+    builder ++= "DAT File Output Path: %s\n".format(dataFileOutputPath)
     builder.toString
   }
 }

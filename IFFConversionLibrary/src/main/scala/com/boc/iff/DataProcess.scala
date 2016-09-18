@@ -49,7 +49,7 @@ trait DataProcess[T<:DataProcessConfig] {
   protected def checkFilesExists: Boolean = {
     if(!checkFileExists(dataProcessConfig.configFilePath)||
       !checkFileExists(dataProcessConfig.metadataFilePath)||
-      !checkFileExists(dataProcessConfig.iffFileInputPath)) {
+      !checkFileExists(dataProcessConfig.dataFileInputPath)) {
       false
     } else {
       true
@@ -136,7 +136,7 @@ trait DataProcess[T<:DataProcessConfig] {
    * @param readBufferSize 读取缓冲区大小
    * @return
    */
-  protected def openIFFFileBufferedInputStream(fileName: String,
+  protected def openFileBufferedInputStream(fileName: String,
                                                isGZip: Boolean,
                                                readBufferSize: Int): BufferedInputStream = {
     val fileInputStream = openFileInputStream(fileName)
@@ -294,11 +294,11 @@ trait DataProcess[T<:DataProcessConfig] {
   /**
    * 执行整个作业
    */
-  protected def run(iffConversionConfig: T): Unit = {
-    this.dataProcessConfig = iffConversionConfig
+  protected def run(config: T): Unit = {
+    this.dataProcessConfig = config
     if(!prepare()) return
     processFile()
-    logger.info(MESSAGE_ID_CNV1001, "File Conversion Complete! File: " + iffConversionConfig.iffFileInputPath)
+    logger.info(MESSAGE_ID_CNV1001, "File Conversion Complete! File: " + config.dataFileInputPath)
   }
 }
 
