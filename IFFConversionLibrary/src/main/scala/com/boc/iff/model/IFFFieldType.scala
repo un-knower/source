@@ -133,6 +133,11 @@ object IFFFieldType {
         }
       case _ =>
     }
+    fieldType match {
+      case fieldType: IFFDateTimeType =>
+        fieldType.pattern = stringTokenizer.nextToken
+      case _ =>
+    }
 
     fieldType match {
       case fieldType: IFFMaxlengthType =>

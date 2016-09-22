@@ -14,9 +14,9 @@ class CommonFieldValidatorContext() extends Serializable {
     validator.validate(fieldType, fieldValue)
   }
 
-  def validateField(iffField: IFFField, fieldValues: HashMap[String,String]) = {
+  def validateField(iffField: IFFField, fieldValues: HashMap[String,Any]) = {
     val fieldType = iffField.typeInfo
-    val fieldValue = fieldValues.getOrElse(iffField.name, "")
+    val fieldValue = fieldValues.getOrElse(iffField.name, "").toString
     val normalCheck = fieldType match {
       case fieldType@IFFDate() => validate(fieldType, fieldValue)
       case fieldType@IFFTime() => validate(fieldType, fieldValue)
@@ -48,7 +48,7 @@ sealed trait CommonFieldWithValidator {
   protected val commonFieldValidatorContext: CommonFieldValidatorContext = null
   protected val iffField: IFFField = null
 
-  def validateField(fieldValue:HashMap[String,String]) = {
+  def validateField(fieldValue:HashMap[String,Any]) = {
     commonFieldValidatorContext.validateField(iffField, fieldValue)
   }
 

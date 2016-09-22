@@ -10,10 +10,30 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="scala-sdk-2.10.4" level="application" />
+    <orderEntry type="library" name="scala-sdk-2.11.8" level="application" />
     <orderEntry type="module-library">
       <library name="Maven: com.ibm.icu:icu4j-52_1:1.0">
         <CLASSES>
           <root url="jar://$MODULE_DIR$/../lib/icu4j-52_1.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="Maven: ognl:ognl:3.0.6">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../lib/ognl-3.0.6.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="Maven: javassist:javassist:3.11.0.GA">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../lib/javassist-3.11.0.GA.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />
@@ -120,7 +140,5 @@
     <orderEntry type="library" name="Maven: org.apache.hadoop:hadoop-annotations:2.2.0" level="project" />
     <orderEntry type="library" name="Maven: com.github.scopt:scopt_2.10:3.1.0" level="project" />
     <orderEntry type="library" name="Maven: org.scala-lang:scala-library:2.10.1" level="project" />
-    <orderEntry type="library" name="scala-sdk-2.10.4" level="application" />
-    <orderEntry type="library" name="scala-sdk-2.11.8" level="application" />
   </component>
 </module>

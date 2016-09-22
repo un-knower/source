@@ -139,6 +139,20 @@
             <systemPath>${project.basedir}/../lib/icu4j-charset-52_1.jar</systemPath>
         </dependency>
         <dependency>
+            <groupId>ognl</groupId>
+            <artifactId>ognl</artifactId>
+            <version>3.0.6</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/../lib/ognl-3.0.6.jar</systemPath>
+        </dependency>
+        <dependency>
+            <groupId>javassist</groupId>
+            <artifactId>javassist</artifactId>
+            <version>3.11.0.GA</version>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/../lib/javassist-3.11.0.GA.jar</systemPath>
+        </dependency>
+        <dependency>
             <groupId>com.ibm.as400</groupId>
             <artifactId>jt400</artifactId>
             <version>1.0</version>

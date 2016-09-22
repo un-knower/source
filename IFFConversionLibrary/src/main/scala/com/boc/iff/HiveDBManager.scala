@@ -101,6 +101,7 @@ class HiveDBManager(prefix: String, config: Properties)
         | WHERE DBS.NAME=?
         | AND TBLS.TBL_NAME=?
       """.stripMargin
+    logger.info("dbArg","dbarg:dbName="+dbName+",tableName="+tableName)
     DBUtils.querySql(dataSource, sql)({ pstmt=>
       pstmt.setString(1, dbName)
       pstmt.setString(2, tableName)

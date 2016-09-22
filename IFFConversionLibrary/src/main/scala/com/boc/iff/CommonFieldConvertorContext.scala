@@ -5,7 +5,8 @@ import java.nio.charset.CharsetDecoder
 import com.boc.iff.model._
 import org.apache.commons.lang3.StringUtils
 
-import scala.collection.mutable
+import scala.collection.{JavaConversions, mutable}
+import ognl.Ognl
 
 
 /**
@@ -18,11 +19,17 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
     convertor.convert(fieldType, fieldValue, decoder)
   }
 
-  def convert(iffField: IFFField, fieldValues: mutable.HashMap[String,String]): String = {
+  def convert(iffField: IFFField, fieldValues: mutable.HashMap[String,Any]): String = {
     val fieldType = iffField.typeInfo
-    var fieldValue = fieldValues(iffField.name)
+    var fieldValue = ""
     if(StringUtils.isNotEmpty(iffField.expression)){
-      fieldValue = "";
+      val result = Ognl.getValue(iffField.expression,JavaConversions.mapAsJavaMap(fieldValues))
+      if(result!=null){
+        fieldValues += (iffField.name->result)
+        fieldValue=result.toString
+      }
+    }else if(fieldValues.contains(iffField.name)){
+      fieldValue = fieldValues(iffField.name).toString
     }
     fieldType match {
       case fieldType@IFFDate() => convert(fieldType, fieldValue)
@@ -52,7 +59,7 @@ sealed trait CommonFieldWithConvertor {
   protected val commonFieldConvertorContext: CommonFieldConvertorContext = null
   protected val iffField: IFFField = null
 
-  def convert(fieldValue: mutable.HashMap[String,String]): String = {
+  def convert(fieldValue: mutable.HashMap[String,Any]): String = {
     commonFieldConvertorContext.convert(iffField, fieldValue)
   }
 

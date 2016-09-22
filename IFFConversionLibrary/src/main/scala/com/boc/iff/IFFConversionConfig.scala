@@ -31,6 +31,7 @@ class IFFConversionConfig extends AppConfig {
   var filename: String = ""                                                 //文件名称
   var fileEOFPrefix: String = ""                                            //文件结尾标识符
   var fileMaxError: Long = 100                                               //最大文件错误条数
+  var fileMaxBlank: Long = 0                                                 //文件最大空行数
   private val dateFormat = new SimpleDateFormat(ACCOUNT_DATE_PATTERN)
 
   /**
@@ -100,6 +101,9 @@ class IFFConversionConfig extends AppConfig {
     optionParser.opt[Long]("dat-file-fileMaxError-number")
       .text("DAT File fileMaxError Number")
       .foreach(this.fileMaxError = _)
+    optionParser.opt[Long]("dat-file-fileMaxBlank-number")
+      .text("DAT File fileMaxBlank Number")
+      .foreach(this.fileMaxBlank = _)
   }
 
   override def toString = {

@@ -412,11 +412,11 @@ trait IFFConversion[T<:IFFConversionConfig] {
       }
     }*/
 
-    /*if(dbManagers.nonEmpty){
+    if(dbManagers.nonEmpty){
       for(dbManager<-dbManagers){
         dbManager.patchIFFConversionConfig(iffConversionConfig)
       }
-    }*/
+    }
 
     convertFile()
     logger.info(MESSAGE_ID_CNV1001, "File Conversion Complete! File: " + iffConversionConfig.iffFileInputPath)

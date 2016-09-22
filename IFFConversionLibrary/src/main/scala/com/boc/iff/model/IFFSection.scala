@@ -2,6 +2,8 @@ package com.boc.iff.model
 
 import java.util
 
+import org.apache.commons.lang3.StringUtils
+
 import scala.collection.JavaConversions._
 
 
@@ -35,6 +37,10 @@ class IFFSection extends Serializable {
     }
     sb ++= "</util:list></property></bean>"
     sb.toString
+  }
+
+  def getSourceLength: Int = {
+    fields.filter(x=>StringUtils.isEmpty(x.expression)).length
   }
 
 }

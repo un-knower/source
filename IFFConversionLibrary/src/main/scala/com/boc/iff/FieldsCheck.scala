@@ -3,9 +3,10 @@ package com.boc.iff
 import java.text.SimpleDateFormat
 
 import com.boc.iff.model.{CDate, CDecimal, CInteger, CTime, CTimestamp, IFFDecimalType, IFFFieldType, IFFMaxlengthType}
+import ognl.Ognl
 import org.apache.commons.lang.StringUtils
 
-import scala.collection.mutable
+import scala.collection.{JavaConversions, mutable}
 /**
   * Created by birdie on 8/25/16.
   */
@@ -176,23 +177,7 @@ object FieldValidator extends FieldsCheck {
   }
 
   def validatCDate(fieldType: CDate,fieldValue: String):Boolean={
-    var pattern:String = null;
-    if(fieldType.pattern!=null){
-      pattern = fieldType.pattern;
-    }else{
-      val regx1 = """(\d{4}-\d{2}-\d{2})""".r
-      val regx2 = """(\d{4}/\d{2}/\d{2})""".r
-      val regx3 = """(\d{4}-\d{1,2}-\d{1,2})""".r
-      val regx4 = """(\d{4}年\d{1,2}月\d{1,2}日)""".r
-      pattern = fieldValue match{
-        case regx1(date) => "yyyy-MM-dd"
-        case regx2(date) => "yyyy/MM/dd"
-        case regx3(date) => "yyyy-M-d"
-        case regx4(date) => "yyyy年M月d日"
-        case _ => "yyyyMMdd"
-      }
-    }
-    validatBase(fieldType,fieldValue)&&checkDate(fieldValue,pattern)
+    validatBase(fieldType,fieldValue)&&checkDate(fieldValue,fieldType.pattern)
   }
 
   def validatCTime(fieldType: CTime, fieldValue: String):Boolean={
@@ -203,8 +188,20 @@ object FieldValidator extends FieldsCheck {
     validatBase(fieldType,fieldValue)&&checkDate(fieldValue,fieldType.pattern)
   }
 
-  def validatExpression(list: java.util.List[String],hashMap: mutable.HashMap[String,String]):Boolean={
-    true
+  def validatExpression(list: java.util.List[String],hashMap: mutable.HashMap[String,Any]):Boolean={
+    if(list==null||list.size()==0) {
+      true
+    }else{
+      import scala.collection.JavaConversions._
+      for(exp<-list){
+        val result=Ognl.getValue(exp,JavaConversions.mapAsJavaMap(hashMap))
+        if(!result.asInstanceOf[Boolean]){
+          return false
+        }
+      }
+      true
+    }
+
   }
 
 
