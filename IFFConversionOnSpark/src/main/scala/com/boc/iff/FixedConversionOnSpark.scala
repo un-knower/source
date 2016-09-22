@@ -137,7 +137,7 @@ class FixedConversionOnSparkJob
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, iffFileInfo.recordLength+1)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
-    val lengthOfLineEnd:Int = 2
+    val lengthOfLineEnd:Int = 1
     val recordBuffer = new Array[Byte](iffFileInfo.recordLength+lengthOfLineEnd)//把换行符号也读入到缓冲byte
     var totalBlockReadBytesCount: Long = 0
     val iffFileInputStream = openIFFFileBufferedInputStream(
@@ -268,7 +268,7 @@ class FixedConversionOnSparkJob
           val skipped = iffFileSourceInputStream.skip(restToSkip)
           restToSkip = restToSkip - skipped
         }
-        val recordLen = iffFileInfo.recordLength+2
+        val recordLen = iffFileInfo.recordLength+1
         val recordBytes = new Array[Byte](recordLen)
         while ( currentBlockReadBytesCount < blockSize ) {
           var recordLength: Int = 0
