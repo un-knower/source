@@ -16,6 +16,7 @@ object IFFUtils {
     val dfs = Value(1, "dfs")
   }
 
+
   private val HEXES: String = "0123456789ABCDEF"
   private val SIZE_REGEX = """^([\d]+)([TtGgMmKk]?)$""".r
 
@@ -75,6 +76,7 @@ object IFFUtils {
   }
 
   def getSize(sizeText: String): Int = {
+    println("sizeTextsizeTextsizeText"+sizeText)
     val SIZE_REGEX(valueText, unit) = sizeText
     val value = valueText.toInt
     val unitPow = unit.toLowerCase match {
@@ -83,6 +85,7 @@ object IFFUtils {
       case "m" => 2
       case _ => 1
     }
+    println("value:"+value+" unitPow:"+unitPow)
     value * math.pow(1024, unitPow).toInt
   }
 

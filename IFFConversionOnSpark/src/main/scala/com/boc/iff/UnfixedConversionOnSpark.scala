@@ -15,6 +15,9 @@ import com.boc.iff.exception._
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration.Duration
+import scala.concurrent._
+import ExecutionContext.Implicits.global
 
 class UnfixedConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig {
 
@@ -137,6 +140,7 @@ class UnfixedConversionOnSparkJob
   protected def createBlockPositionQueue: java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, 0)
+    logger.info("blockSize","blockSize:"+blockSize)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     var totalBlockReadBytesCount: Long = 0
     val iffFileInputStream = openIFFFileInputStream(iffConversionConfig.iffFileInputPath+iffConversionConfig.filename)
@@ -175,13 +179,14 @@ class UnfixedConversionOnSparkJob
               //. 检查记录的列数
               if (countLineNumber == 0 ) {
                 val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(lineStr,iffMetadata.srcSeparator)
-                if(lineSeq.length != iffMetadata.body.getSourceLength) {
+                if((lineSeq.length -1)!= iffMetadata.body.getSourceLength) {
                   logger.error("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq.length + " iffMetadata.body" + iffMetadata.body.getSourceLength, "file number is not right")
                   throw RecordNotFixedException("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq.length + " iffMetadata.body" + iffMetadata.body.getSourceLength)
                 }
               }
-              currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length
-              logger.info("block Info", "第" + blockIndex + "块" + currentLineLength)
+              //换行符号
+              currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length+1
+              logger.info("block Info", "第" + blockIndex + "块" + currentLineLength+" data:="+lineStr)
               if (endOfFile || (currentBlockReadBytesCount + currentLineLength) > blockSize) {
                 canRead = false
               } else {
@@ -271,23 +276,34 @@ class UnfixedConversionOnSparkJob
       val iffFileSourceInputStream =
         if(iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
         else iffFileInputStream
-      val br = new BufferedReader(new InputStreamReader(iffFileInputStream.asInstanceOf[java.io.InputStream],charset))
+      val inputStream = iffFileSourceInputStream.asInstanceOf[java.io.InputStream]
       logger.info("blockPositionIterator:","blockPositionIterator"+charset)
 
       while(blockPositionIterator.hasNext){
         val (blockIndex, blockPosition, blockSize) = blockPositionIterator.next()
+        logger.info("blockInfo","posistionQueus("+blockIndex+","+blockPosition+","+blockSize+")")
         logger.info("blockPositionIterator.hasNext:","blockPositionIterator.hasNext")
         var currentBlockReadBytesCount: Long = 0
         var restToSkip = blockPosition
         while (restToSkip > 0) {
-          val skipped = br.skip(restToSkip)
+          val skipped = inputStream.skip(restToSkip)
           restToSkip = restToSkip - skipped
         }
+        val br = new BufferedReader(new InputStreamReader(inputStream,charset))
         logger.info("chartSet","chartSet"+iffMetadata.sourceCharset)
         while ( currentBlockReadBytesCount < blockSize ) {
           val currentLine = br.readLine()
           logger.info("currentLine:","currentLine"+currentLine)
-          var recordLength: Int = currentLine.getBytes(iffMetadata.sourceCharset).length
+         var recordLength: Int = 0
+          try {
+            recordLength = currentLine.getBytes(iffMetadata.sourceCharset).length
+          }catch {
+            case e:Exception =>
+              logger.info("currentLine:","currentLine"+currentLine+" currentBlockReadBytesCount:"+currentBlockReadBytesCount)
+              throw e
+          }
+          currentBlockReadBytesCount += recordLength
+          currentBlockReadBytesCount += 1
           val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(currentLine,lineSplit)
 
           var dataInd = 0
@@ -329,7 +345,6 @@ class UnfixedConversionOnSparkJob
             logger.error("ERROR validateField",currentLine)
           }
           recordList += sb.toString
-          currentBlockReadBytesCount += recordLength
         }
       }
       iffFileSourceInputStream.close()
@@ -379,13 +394,12 @@ class UnfixedConversionOnSparkJob
       }
       tempOutputDir
     }
-    logger.info("blockPositionQueue.size()1",blockPositionQueue.size().toString)
-    conversionJob()
-    logger.info("blockPositionQueue.size()2",blockPositionQueue.size().toString)
-    val errorRec = countList.values.foldLeft(0L)(_+_)
-    if(errorRec>iffConversionConfig.fileMaxError){
-      throw MaxErrorNumberException("errorRec:"+errorRec+"iffConversionConfig.fileMaxError"+iffConversionConfig.fileMaxError)
+
+    for(index<-(0 until blockPositionQueue.size()).view){
+      logger.info("conversionJobCall","conversionJobCall")
+      conversionJob()
     }
+
     /*val futureQueue = mutable.Queue[Future[String]]()
     for(index<-(0 until blockPositionQueue.size()).view){
       val conversionFuture = future { conversionJob() }
@@ -395,6 +409,10 @@ class UnfixedConversionOnSparkJob
       val future = futureQueue.dequeue()
       Await.ready(future, Duration.Inf)
     }*/
+    val errorRec = countList.values.foldLeft(0L)(_+_)
+    if(errorRec>iffConversionConfig.fileMaxError){
+      throw MaxErrorNumberException("errorRec:"+errorRec+"iffConversionConfig.fileMaxError"+iffConversionConfig.fileMaxError)
+    }
     DFSUtils.deleteDir(tempDir)
   }
 
@@ -425,7 +443,7 @@ class UnfixedConversionOnSparkJob
   override protected def prepare(): Boolean = {
     val result = super.prepare()
     if(iffConversionConfig.maxBlockSize > 0 && iffConversionConfig.minBlockSize > 0){
-      val fitBlockSize = (iffFileInfo.fileLength / maxExecutors) + (iffFileInfo.fileLength % maxExecutors)
+      val fitBlockSize = (iffFileInfo.fileLength / (if(maxExecutors==0)1 else maxExecutors)) + (iffFileInfo.fileLength % (if(maxExecutors==0)1 else maxExecutors))
       iffConversionConfig.blockSize =
         math.min(iffConversionConfig.maxBlockSize, math.max(iffConversionConfig.minBlockSize, fitBlockSize)).toInt
     }
