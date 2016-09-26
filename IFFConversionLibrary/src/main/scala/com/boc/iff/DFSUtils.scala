@@ -38,8 +38,11 @@ object DFSUtils {
   def deleteDir(path: String)(implicit configuration: Configuration): Unit = {
     val fileSystem = FileSystem.get(configuration)
     val fsPath = new Path(path)
+    println("*********************delete dir:"+path)
     if(fileSystem.exists(fsPath)){
-      fileSystem.delete(fsPath, true)
+      if(fileSystem.delete(fsPath, true)) {
+        println("*********************delete dir:"+path+"success********************")
+      }
     }
   }
 

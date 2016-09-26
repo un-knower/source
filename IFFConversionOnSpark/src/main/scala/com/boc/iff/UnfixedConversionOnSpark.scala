@@ -373,13 +373,16 @@ class UnfixedConversionOnSparkJob
       val rdd = sparkContext.makeRDD(Seq(blockPosition), 1)
       val convertedRecords = rdd.mapPartitions(convertByPartitions)
       val tempOutputDir = "%s/%05d".format(tempDir, blockIndex)
+      val errorOutputDir = "%s/%05d".format(errorDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
       val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR validateField")).count()
       countList.synchronized{
         countList += blockIndex.toString->errorRecordNumber
       }
       convertedRecords.filter(!_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
-      convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(errorDir)
+      if(convertedRecords.filter(_.endsWith("ERROR validateField")).count()>0){
+        convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(errorOutputDir)
+      }
       logger.info("tempOutputDir",tempOutputDir+"error/"+errorDir+convertedRecords.filter(_.endsWith("ERROR validateField")).count())
 
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)

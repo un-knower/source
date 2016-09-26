@@ -139,6 +139,7 @@ class FixedConversionOnSparkJob
     val blockSize = math.max(iffConversionConfig.blockSize, iffFileInfo.recordLength + 1)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     val lengthOfLineEnd: Int = 1
+    logger.info("recordLength","recordLength"+iffFileInfo.recordLength)
     val recordBuffer = new Array[Byte](iffFileInfo.recordLength + lengthOfLineEnd) //把换行符号也读入到缓冲byte
     var totalBlockReadBytesCount: Long = 0
     val iffFileInputStream = openIFFFileBufferedInputStream(
@@ -155,6 +156,7 @@ class FixedConversionOnSparkJob
         val length = iffFileInputStream.read(recordBuffer)
         if (length != -1) {
           val lineStr = new String(recordBuffer, iffMetadata.sourceCharset)
+          logger.info("lineStr","lineStr:"+lineStr)
           if (lineStr.startsWith(iffConversionConfig.fileEOFPrefix) || recordEnd) {
             recordEnd = true
             endOfFileStr.append(lineStr)
@@ -288,9 +290,11 @@ class FixedConversionOnSparkJob
           val dataMap = new mutable.HashMap[String, Any]
           var success = true
           var errorMessage = "";
+          val lineStr = new StringBuffer();
           try {
             for (iffField <- iffMetadata.body.fields if (StringUtils.isEmpty(iffField.getExpression))) {
               val fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
+              lineStr.append(fieldVal+" | ")
               val fieldType = iffField.typeInfo
               fieldType match {
                 case fieldType: CInteger => dataMap += (iffField.name -> fieldVal.toInt)
@@ -306,6 +310,7 @@ class FixedConversionOnSparkJob
               success = false
               errorMessage = " unknown exception " + e.getMessage
           }
+          logger.info("lineStr","lineStr:"+lineStr.toString)
           val sb = new mutable.StringBuilder(recordBytes.length)
           import com.boc.iff.CommonFieldValidatorContext._
           implicit val validContext = new CommonFieldValidatorContext
