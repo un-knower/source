@@ -150,7 +150,7 @@ class UnfixedConversionOnSparkJob
     var currentLineLength: Int = 0
     var countLineNumber: Int = 0
     var blankLineNumber: Int = 0
-    val needCheckBlank: Boolean = if(iffConversionConfig.fileMaxBlank==0) true else false
+    val needCheckBlank: Boolean = if(iffConversionConfig.fileMaxBlank==0) false else true
 
     logger.info("chartSet","chartSet"+iffMetadata.sourceCharset)
     while (!endOfFile) {
@@ -173,7 +173,7 @@ class UnfixedConversionOnSparkJob
               blankLineNumber += 1
               if (needCheckBlank && blankLineNumber > iffConversionConfig.fileMaxBlank) {
                 logger.error("file " + iffConversionConfig.filename + " blank number error :" + blankLineNumber + " iffMetadata.body" + iffMetadata.body.getSourceLength, "blank number error")
-                throw MaxBlankNumberException("file " + iffConversionConfig.filename + " blank number error:" + blankLineNumber + " iffMetadata.body" + iffMetadata.body.getSourceLength)
+                throw MaxBlankNumberException("file " + iffConversionConfig.filename + " blank number error:" + blankLineNumber + " iffConversionConfig fileMaxBlank" + iffConversionConfig.fileMaxBlank)
               }
             } else {
               //. 检查记录的列数
@@ -186,7 +186,7 @@ class UnfixedConversionOnSparkJob
               }
               //换行符号
               currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length+1
-              logger.info("block Info", "第" + blockIndex + "块" + currentLineLength+" data:="+lineStr)
+             // logger.info("block Info", "第" + blockIndex + "块" + currentLineLength+" data:="+lineStr)
               if (endOfFile || (currentBlockReadBytesCount + currentLineLength) > blockSize) {
                 canRead = false
               } else {
@@ -293,58 +293,62 @@ class UnfixedConversionOnSparkJob
         logger.info("chartSet","chartSet"+iffMetadata.sourceCharset)
         while ( currentBlockReadBytesCount < blockSize ) {
           val currentLine = br.readLine()
-          logger.info("currentLine:","currentLine"+currentLine)
-         var recordLength: Int = 0
-          try {
-            recordLength = currentLine.getBytes(iffMetadata.sourceCharset).length
-          }catch {
-            case e:Exception =>
-              logger.info("currentLine:","currentLine"+currentLine+" currentBlockReadBytesCount:"+currentBlockReadBytesCount)
-              throw e
-          }
-          currentBlockReadBytesCount += recordLength
-          currentBlockReadBytesCount += 1
-          val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(currentLine,lineSplit)
 
-          var dataInd = 0
-          val dataMap = new mutable.HashMap[String,Any]
-          val sb = new mutable.StringBuilder(recordLength)
-          var success = true
-          var errorMessage = "";
-          try{
-            for (iffField <- iffMetadata.body.fields if(StringUtils.isEmpty(iffField.getExpression))) {
-              val fieldType = iffField.typeInfo
-              fieldType match {
-                case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)
-                case fieldType: CDecimal => dataMap += (iffField.name -> lineSeq(dataInd).toDouble)
-                case _ => dataMap += (iffField.name -> lineSeq(dataInd))
+          if (StringUtils.isNotEmpty(currentLine.trim)) {
+
+            // logger.info("currentLine:","currentLine"+currentLine)
+            var recordLength: Int = 0
+            try {
+              recordLength = currentLine.getBytes(iffMetadata.sourceCharset).length
+            } catch {
+              case e: Exception =>
+                logger.info("currentLine:", "currentLine" + currentLine + " currentBlockReadBytesCount:" + currentBlockReadBytesCount)
+                throw e
+            }
+            currentBlockReadBytesCount += recordLength
+            currentBlockReadBytesCount += 1
+            val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(currentLine, lineSplit)
+
+            var dataInd = 0
+            val dataMap = new mutable.HashMap[String, Any]
+            val sb = new mutable.StringBuilder(recordLength)
+            var success = true
+            var errorMessage = "";
+            try {
+              for (iffField <- iffMetadata.body.fields if (StringUtils.isEmpty(iffField.getExpression))) {
+                val fieldType = iffField.typeInfo
+                fieldType match {
+                  case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)
+                  case fieldType: CDecimal => dataMap += (iffField.name -> lineSeq(dataInd).toDouble)
+                  case _ => dataMap += (iffField.name -> lineSeq(dataInd))
+                }
+                dataInd += 1
               }
-              dataInd += 1
+            } catch {
+              case e: NumberFormatException =>
+                success = false
+                errorMessage = " String to Number Exception "
+              case e: Exception =>
+                success = false
+                errorMessage = " unknown exception " + e.getMessage
             }
-          }catch{
-            case e:NumberFormatException =>
-              success = false
-              errorMessage = " String to Number Exception "
-            case e:Exception =>
-              success = false
-              errorMessage = " unknown exception "+e.getMessage
-          }
-          if(success){
-            import com.boc.iff.CommonFieldValidatorContext._
-            implicit val validContext = new CommonFieldValidatorContext
-            for (iffField <- iffMetadata.body.fields if success && !iffField.isFiller) {
-              sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
-              sb ++= fieldDelimiter
-              success = if(iffField.validateField(dataMap))true else false
-              errorMessage = if(!success)"ERROR validateField" else ""
+            if (success) {
+              import com.boc.iff.CommonFieldValidatorContext._
+              implicit val validContext = new CommonFieldValidatorContext
+              for (iffField <- iffMetadata.body.fields if success && !iffField.isFiller) {
+                sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
+                sb ++= fieldDelimiter
+                success = if (iffField.validateField(dataMap)) true else false
+                errorMessage = if (!success) "ERROR validateField" else ""
+              }
             }
+            if (!success) {
+              sb.setLength(0)
+              sb.append(currentLine).append(lineSplit).append(errorMessage).append("ERROR")
+              logger.error("ERROR validateField", currentLine)
+            }
+            recordList += sb.toString
           }
-          if(!success){
-            sb.setLength(0)
-            sb.append(currentLine).append(lineSplit).append(errorMessage)
-            logger.error("ERROR validateField",currentLine)
-          }
-          recordList += sb.toString
         }
       }
       iffFileSourceInputStream.close()
@@ -359,8 +363,8 @@ class UnfixedConversionOnSparkJob
     val fileSystem = FileSystem.get(configuration)
     val blockPositionQueue = createBlockPositionQueue
     val convertByPartitions = createConvertOnDFSByPartitionsFunction
-    val countList = new mutable.HashMap[String,Long] //with mutable.SynchronizedMap[String,Long]
-
+    val broadcast: org.apache.spark.broadcast.Broadcast[mutable.ListBuffer[Long]]
+    = sparkContext.broadcast(mutable.ListBuffer())
 
     val tempDir = getTempDir
     val errorDir = getErrorFileDir
@@ -375,15 +379,13 @@ class UnfixedConversionOnSparkJob
       val tempOutputDir = "%s/%05d".format(tempDir, blockIndex)
       val errorOutputDir = "%s/%05d".format(errorDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
-      val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR validateField")).count()
-      countList.synchronized{
-        countList += blockIndex.toString->errorRecordNumber
+      val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR")).count()
+      broadcast.value +=errorRecordNumber;
+      convertedRecords.filter(!_.endsWith("ERROR")).saveAsTextFile(tempOutputDir)
+      if(errorRecordNumber>0) {
+        convertedRecords.filter(_.endsWith("ERROR")).saveAsTextFile(errorOutputDir)
       }
-      convertedRecords.filter(!_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
-      if(convertedRecords.filter(_.endsWith("ERROR validateField")).count()>0){
-        convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(errorOutputDir)
-      }
-      logger.info("tempOutputDir",tempOutputDir+"error/"+errorDir+convertedRecords.filter(_.endsWith("ERROR validateField")).count())
+      //logger.info("tempOutputDir",tempOutputDir+"error/"+errorDir+convertedRecords.filter(_.endsWith("ERROR validateField")).count())
 
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
       for (fileStatusIndex <- fileStatusArray.indices.view) {
@@ -398,12 +400,8 @@ class UnfixedConversionOnSparkJob
       tempOutputDir
     }
 
-    for(index<-(0 until blockPositionQueue.size()).view){
-      logger.info("conversionJobCall","conversionJobCall")
-      conversionJob()
-    }
 
-    /*val futureQueue = mutable.Queue[Future[String]]()
+    val futureQueue = mutable.Queue[Future[String]]()
     for(index<-(0 until blockPositionQueue.size()).view){
       val conversionFuture = future { conversionJob() }
       futureQueue.enqueue(conversionFuture)
@@ -411,8 +409,9 @@ class UnfixedConversionOnSparkJob
     while(futureQueue.nonEmpty){
       val future = futureQueue.dequeue()
       Await.ready(future, Duration.Inf)
-    }*/
-    val errorRec = countList.values.foldLeft(0L)(_+_)
+    }
+    val errorRec = broadcast.value.foldLeft(0L)(_+_)
+    logger.info("errorRec","errorRec:"+errorRec)
     if(errorRec>iffConversionConfig.fileMaxError){
       throw MaxErrorNumberException("errorRec:"+errorRec+"iffConversionConfig.fileMaxError"+iffConversionConfig.fileMaxError)
     }

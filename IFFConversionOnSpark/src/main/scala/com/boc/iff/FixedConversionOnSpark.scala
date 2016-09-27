@@ -156,7 +156,7 @@ class FixedConversionOnSparkJob
         val length = iffFileInputStream.read(recordBuffer)
         if (length != -1) {
           val lineStr = new String(recordBuffer, iffMetadata.sourceCharset)
-          logger.info("lineStr","lineStr:"+lineStr)
+          //logger.info("lineStr","lineStr:"+lineStr)
           if (lineStr.startsWith(iffConversionConfig.fileEOFPrefix) || recordEnd) {
             recordEnd = true
             endOfFileStr.append(lineStr)
@@ -286,15 +286,13 @@ class FixedConversionOnSparkJob
           }
 
 
-          logger.info("currentRec", "currentRec:" + new String(recordBytes, iffMetadata.sourceCharset))
+         // logger.info("currentRec", "currentRec:" + new String(recordBytes, iffMetadata.sourceCharset))
           val dataMap = new mutable.HashMap[String, Any]
           var success = true
           var errorMessage = "";
-          val lineStr = new StringBuffer();
           try {
             for (iffField <- iffMetadata.body.fields if (StringUtils.isEmpty(iffField.getExpression))) {
               val fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
-              lineStr.append(fieldVal+" | ")
               val fieldType = iffField.typeInfo
               fieldType match {
                 case fieldType: CInteger => dataMap += (iffField.name -> fieldVal.toInt)
@@ -310,7 +308,6 @@ class FixedConversionOnSparkJob
               success = false
               errorMessage = " unknown exception " + e.getMessage
           }
-          logger.info("lineStr","lineStr:"+lineStr.toString)
           val sb = new mutable.StringBuilder(recordBytes.length)
           import com.boc.iff.CommonFieldValidatorContext._
           implicit val validContext = new CommonFieldValidatorContext

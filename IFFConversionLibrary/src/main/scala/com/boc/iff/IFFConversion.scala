@@ -255,7 +255,13 @@ trait IFFConversion[T<:IFFConversionConfig] {
     iffMetadata.targetSchema = appContext.getBean("TargetSchema").asInstanceOf[String]
     iffMetadata.targetTable = appContext.getBean("TargetTable").asInstanceOf[String]
     iffMetadata.srcSeparator = appContext.getBean("SrcSeparator").asInstanceOf[String]
-    iffMetadata.fixedLength = appContext.getBean("fixedLength").asInstanceOf[String]
+    iffMetadata.fixedLength = try {
+      appContext.getBean("fixedLength").asInstanceOf[String]
+    }catch {
+      case e: NoSuchBeanDefinitionException =>
+        logger.info(MESSAGE_ID_CNV1001, "No SrcCharset define in xml :" + metadataFile.getAbsolutePath)
+        null.asInstanceOf[String]
+    }
     iffMetadata.sourceCharset =
       try {
         appContext.getBean("SrcCharset").asInstanceOf[String]
@@ -334,7 +340,9 @@ trait IFFConversion[T<:IFFConversionConfig] {
     }
     iffFileInfo.recordLength = math.max(iffFileInfo.recordLength, iffMetadata.body.getLength)
     iffFileInfo.recordLength = math.max(iffFileInfo.recordLength, iffMetadata.footer.getLength)
-    iffFileInfo.recordLength = math.max(iffFileInfo.recordLength, iffMetadata.fixedLength.toInt)
+    if(iffMetadata.fixedLength!=null) {
+      iffFileInfo.recordLength = math.max(iffFileInfo.recordLength, iffMetadata.fixedLength.toInt)
+    }
     logger.info(MESSAGE_ID_CNV1001, "iffFile REC_LENGTH = " + iffFileInfo.recordLength)
     iffFileInfo.fileLength = getIFFFileLength(iffFileName, iffFileInfo.gzip)
   }
