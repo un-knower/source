@@ -356,10 +356,14 @@ class FixedConversionOnSparkJob
       val convertedRecords = rdd.mapPartitions(convertByPartitions)
       val tempOutputDir = "%s/%05d".format(tempDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
-      val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR")).count()
-      broadcast.value +=errorRecordNumber
+      val errorRcdRDD = convertedRecords.filter(_.endsWith("ERROR"))
+      if(iffConversionConfig.fileMaxError>0) {
+        val errorRecordNumber = errorRcdRDD.count()
+        broadcast.value += errorRecordNumber
+      }
+
       convertedRecords.filter(!_.endsWith("ERROR")).saveAsTextFile(tempOutputDir)
-      convertedRecords.filter(_.endsWith("ERROR")).saveAsTextFile(errorDir)
+      errorRcdRDD.saveAsTextFile(errorDir)
       //logger.info("tempOutputDir", tempOutputDir + "error/" + errorDir + convertedRecords.filter(_.endsWith("ERROR validateField")).count())
 
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
@@ -384,10 +388,12 @@ class FixedConversionOnSparkJob
       val future = futureQueue.dequeue()
       Await.ready(future, Duration.Inf)
     }
-    val errorRec = broadcast.value.foldLeft(0L)(_ + _)
-    logger.info("errorRec","errorRec:"+errorRec+" fileMaxError:"+iffConversionConfig.fileMaxError)
-    if(errorRec>iffConversionConfig.fileMaxError){
-      throw MaxErrorNumberException("errorRec:"+errorRec+"iffConversionConfig.fileMaxError"+iffConversionConfig.fileMaxError)
+    if(iffConversionConfig.fileMaxError>0) {
+      val errorRec = broadcast.value.foldLeft(0L)(_ + _)
+      logger.info("errorRec", "errorRec:" + errorRec + " fileMaxError:" + iffConversionConfig.fileMaxError)
+      if (errorRec > iffConversionConfig.fileMaxError) {
+        throw MaxErrorNumberException("errorRec:" + errorRec + "iffConversionConfig.fileMaxError" + iffConversionConfig.fileMaxError)
+      }
     }
     DFSUtils.deleteDir(tempDir)
   }

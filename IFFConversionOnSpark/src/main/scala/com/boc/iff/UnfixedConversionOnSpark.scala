@@ -170,7 +170,6 @@ class UnfixedConversionOnSparkJob
             }
           }else {//. 检查记录是否空行
             if (StringUtils.isEmpty(lineStr.trim)) {
-              logger.info("blank inf","blankLineNumber:"+blankLineNumber+" iffConversionConfig fileMaxBlank:"+iffConversionConfig.fileMaxBlank)
               blankLineNumber += 1
               if (needCheckBlank && blankLineNumber > iffConversionConfig.fileMaxBlank) {
                 logger.error("file " + iffConversionConfig.filename + " blank number error :" + blankLineNumber + " iffMetadata.body" + iffMetadata.body.getSourceLength, "blank number error")
@@ -380,12 +379,13 @@ class UnfixedConversionOnSparkJob
       val tempOutputDir = "%s/%05d".format(tempDir, blockIndex)
       val errorOutputDir = "%s/%05d".format(errorDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
-      val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR")).count()
-      broadcast.value +=errorRecordNumber
-      convertedRecords.filter(!_.endsWith("ERROR")).saveAsTextFile(tempOutputDir)
-      if(errorRecordNumber>0) {
-        convertedRecords.filter(_.endsWith("ERROR")).saveAsTextFile(errorOutputDir)
+      val errorRcdRDD = convertedRecords.filter(_.endsWith("ERROR"))
+      if(iffConversionConfig.fileMaxError>0) {
+        val errorRecordNumber = errorRcdRDD.count()
+        broadcast.value += errorRecordNumber
       }
+      convertedRecords.filter(!_.endsWith("ERROR")).saveAsTextFile(tempOutputDir)
+      errorRcdRDD.saveAsTextFile(errorOutputDir)
       //logger.info("tempOutputDir",tempOutputDir+"error/"+errorDir+convertedRecords.filter(_.endsWith("ERROR validateField")).count())
 
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
@@ -411,10 +411,12 @@ class UnfixedConversionOnSparkJob
       val future = futureQueue.dequeue()
       Await.ready(future, Duration.Inf)
     }
-    val errorRec = broadcast.value.foldLeft(0L)(_+_)
-    logger.info("errorRec","errorRec:"+errorRec)
-    if(errorRec>iffConversionConfig.fileMaxError){
-      throw MaxErrorNumberException("errorRec:"+errorRec+"iffConversionConfig.fileMaxError"+iffConversionConfig.fileMaxError)
+    if(iffConversionConfig.fileMaxError>0) {
+      val errorRec = broadcast.value.foldLeft(0L)(_ + _)
+      logger.info("errorRec", "errorRec:" + errorRec)
+      if (errorRec > iffConversionConfig.fileMaxError) {
+        throw MaxErrorNumberException("errorRec:" + errorRec + "iffConversionConfig.fileMaxError" + iffConversionConfig.fileMaxError)
+      }
     }
     DFSUtils.deleteDir(tempDir)
   }
