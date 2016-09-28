@@ -170,6 +170,7 @@ class UnfixedConversionOnSparkJob
             }
           }else {//. 检查记录是否空行
             if (StringUtils.isEmpty(lineStr.trim)) {
+              logger.info("blank inf","blankLineNumber:"+blankLineNumber+" iffConversionConfig fileMaxBlank:"+iffConversionConfig.fileMaxBlank)
               blankLineNumber += 1
               if (needCheckBlank && blankLineNumber > iffConversionConfig.fileMaxBlank) {
                 logger.error("file " + iffConversionConfig.filename + " blank number error :" + blankLineNumber + " iffMetadata.body" + iffMetadata.body.getSourceLength, "blank number error")
@@ -380,7 +381,7 @@ class UnfixedConversionOnSparkJob
       val errorOutputDir = "%s/%05d".format(errorDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
       val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR")).count()
-      broadcast.value +=errorRecordNumber;
+      broadcast.value +=errorRecordNumber
       convertedRecords.filter(!_.endsWith("ERROR")).saveAsTextFile(tempOutputDir)
       if(errorRecordNumber>0) {
         convertedRecords.filter(_.endsWith("ERROR")).saveAsTextFile(errorOutputDir)

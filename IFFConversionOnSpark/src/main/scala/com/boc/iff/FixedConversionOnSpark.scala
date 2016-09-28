@@ -2,12 +2,12 @@ package com.boc.iff
 
 import java.io.FileInputStream
 import java.util.Properties
-import java.util.concurrent.{LinkedBlockingQueue, Future => JFuture}
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.zip.GZIPInputStream
 
 import com.boc.iff.DFSUtils.FileMode
 import com.boc.iff.IFFConversion._
-import com.boc.iff.exception.RecordNumberErrorException
+import com.boc.iff.exception.{MaxErrorNumberException, RecordNumberErrorException}
 import com.boc.iff.model._
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -15,6 +15,9 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.concurrent._
+import ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
 
 class FixedConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig {
 
@@ -321,7 +324,7 @@ class FixedConversionOnSparkJob
 
           if (!success) {
             sb.setLength(0)
-            sb.append(new String(recordBytes, iffMetadata.sourceCharset)).append(errorMessage)
+            sb.append(new String(recordBytes, iffMetadata.sourceCharset)).append(errorMessage).append("ERROR")
             logger.error("ERROR validateField", new String(recordBytes, iffMetadata.sourceCharset))
           }
           recordList += sb.toString
@@ -342,7 +345,8 @@ class FixedConversionOnSparkJob
     val convertByPartitions = createConvertOnDFSByPartitionsFunction
     val tempDir = getTempDir
     val errorDir = getErrorFileDir
-    val countList = new mutable.HashMap[String, Long] //with mutable.SynchronizedMap[String,Long]
+    val broadcast: org.apache.spark.broadcast.Broadcast[mutable.ListBuffer[Long]]
+    = sparkContext.broadcast(mutable.ListBuffer())
     DFSUtils.deleteDir(tempDir)
     DFSUtils.deleteDir(errorDir)
     val conversionJob: (Unit => String) = { _ =>
@@ -352,13 +356,11 @@ class FixedConversionOnSparkJob
       val convertedRecords = rdd.mapPartitions(convertByPartitions)
       val tempOutputDir = "%s/%05d".format(tempDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
-      val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR validateField")).count()
-      countList.synchronized {
-        countList += blockIndex.toString -> errorRecordNumber
-      }
-      convertedRecords.filter(!_.endsWith("ERROR validateField")).saveAsTextFile(tempOutputDir)
-      convertedRecords.filter(_.endsWith("ERROR validateField")).saveAsTextFile(errorDir)
-      logger.info("tempOutputDir", tempOutputDir + "error/" + errorDir + convertedRecords.filter(_.endsWith("ERROR validateField")).count())
+      val errorRecordNumber = convertedRecords.filter(_.endsWith("ERROR")).count()
+      broadcast.value +=errorRecordNumber
+      convertedRecords.filter(!_.endsWith("ERROR")).saveAsTextFile(tempOutputDir)
+      convertedRecords.filter(_.endsWith("ERROR")).saveAsTextFile(errorDir)
+      //logger.info("tempOutputDir", tempOutputDir + "error/" + errorDir + convertedRecords.filter(_.endsWith("ERROR validateField")).count())
 
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
       for (fileStatusIndex <- fileStatusArray.indices.view) {
@@ -372,14 +374,8 @@ class FixedConversionOnSparkJob
       }
       tempOutputDir
     }
-    logger.info("blockPositionQueue.size()1", blockPositionQueue.size().toString)
-    conversionJob()
-    logger.info("blockPositionQueue.size()2", blockPositionQueue.size().toString)
-    val errorRec = countList.values.foldLeft(0L)(_ + _)
-    if (errorRec > iffConversionConfig.fileMaxError) {
-      sys.exit(0)
-    }
-    /*val futureQueue = mutable.Queue[Future[String]]()
+    logger.info("blockPositionQueue.size()", blockPositionQueue.size().toString)
+    val futureQueue = mutable.Queue[Future[String]]()
     for(index<-(0 until blockPositionQueue.size()).view){
       val conversionFuture = future { conversionJob() }
       futureQueue.enqueue(conversionFuture)
@@ -387,7 +383,12 @@ class FixedConversionOnSparkJob
     while(futureQueue.nonEmpty){
       val future = futureQueue.dequeue()
       Await.ready(future, Duration.Inf)
-    }*/
+    }
+    val errorRec = broadcast.value.foldLeft(0L)(_ + _)
+    logger.info("errorRec","errorRec:"+errorRec+" fileMaxError:"+iffConversionConfig.fileMaxError)
+    if(errorRec>iffConversionConfig.fileMaxError){
+      throw MaxErrorNumberException("errorRec:"+errorRec+"iffConversionConfig.fileMaxError"+iffConversionConfig.fileMaxError)
+    }
     DFSUtils.deleteDir(tempDir)
   }
 
@@ -464,6 +465,9 @@ object FixedConversionOnSpark extends App {
     job.start(config, args)
   } catch {
     case t: RecordNumberErrorException =>
+      t.printStackTrace()
+      System.exit(1)
+    case t:MaxErrorNumberException =>
       t.printStackTrace()
       System.exit(1)
     case t: Throwable =>
