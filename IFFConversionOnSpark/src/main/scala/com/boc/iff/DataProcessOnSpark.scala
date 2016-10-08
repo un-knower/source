@@ -6,21 +6,21 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import java.io.{BufferedInputStream, File, FileInputStream}
 
-class New2FullOnSparkConfig extends DataProcessConfig with SparkJobConfig {
+class DataProcessOnSparkConfig extends DataProcessConfig with SparkJobConfig {
 
 }
 
-class New2FullOnSparkJob
-  extends DataProcess[New2FullOnSparkConfig] with SparkJob[New2FullOnSparkConfig] {
+class DataProcessOnSparkJob
+  extends DataProcess[DataProcessOnSparkConfig] with SparkJob[DataProcessOnSparkConfig] {
 
-  protected def deleteTargetDir(): Unit = {
-    logger.info(MESSAGE_ID_CNV1001, "Auto Delete Target Dir: " + dataProcessConfig.dataFileOutputPath)
+  protected def deleteTargetDir(path:String,dir:String) = {
+    logger.info(MESSAGE_ID_CNV1001, "Delete Target Dir: " + path+"/"+dir)
     implicit val configuration = sparkContext.hadoopConfiguration
-    DFSUtils.deleteDir(dataProcessConfig.dataFileOutputPath)
+    DFSUtils.deleteDir(path+"/"+dir)
   }
 
-  protected def getTempDir: String = {
-    dataProcessConfig.tempDir + "/" + StringUtils.split(dataProcessConfig.dataFileInputPath, "/").last
+  protected def getTempDir(dir:String): String = {
+    dataProcessConfig.tempDir + "/" + dir
   }
 
   /**
@@ -70,8 +70,7 @@ class New2FullOnSparkJob
    */
   override protected def checkFilesExists: Boolean = {
     if (!checkLocalFileExists(dataProcessConfig.configFilePath) ||
-      !checkLocalFileExists(dataProcessConfig.metadataFilePath)
-      || !checkFileExists(dataProcessConfig.dataFileInputPath))
+      !checkLocalFileExists(dataProcessConfig.metadataFilePath))
     {
       false
     } else {
@@ -89,10 +88,7 @@ class New2FullOnSparkJob
 
 
   /**
-   * 准备阶段：
-   * 1. 检查输入文件是否存在
-   * 2. 加载配置文件
-   * 3. 查询目标表信息
+   * 准备阶段
    *
    * @return
    */
@@ -110,50 +106,27 @@ class New2FullOnSparkJob
     Array[Class[_]](classOf[IFFMetadata], classOf[IFFSection], classOf[IFFField], classOf[IFFFileInfo])
   }
 
-  override protected def runOnSpark(jobConfig: New2FullOnSparkConfig): Unit = {
+  override protected def runOnSpark(jobConfig: DataProcessOnSparkConfig): Unit = {
     run(jobConfig)
   }
 
   /**
    * 执行整个作业
    */
-  override protected def run(config: New2FullOnSparkConfig): Unit = {
+  override protected def run(config: DataProcessOnSparkConfig): Unit = {
     this.dataProcessConfig = config
     if (!prepare()) return
+    if(dbManagers.nonEmpty){
+      for(dbManager<-dbManagers){
+        dbManager.patchIFFConversionConfig(config)
+      }
+    }
     processFile()
-    logger.info(MESSAGE_ID_CNV1001, "File Conversion Complete! File: " + config.dataFileInputPath)
+    logger.info(MESSAGE_ID_CNV1001, "File Conversion Complete! File: " + config.datFileOutputPath)
   }
 
   override def processFile = {
-    val aaa = sparkContext.textFile("file:///app/birdie/bochk/IFFConversion/config/config.properties")
-    aaa.collect()
-    aaa.saveAsTextFile("/tmp/tzm1")
-    val newRDD = sparkContext.parallelize(List(("A",99),("B",99)))
-    val fullRDD = sparkContext.parallelize(List(("A",99),("B",99),("C",99),("D",99)))
-    val fullRDDTable = sparkContext.parallelize(List(("A","1|2"),("B","1|66662"),("C","1|66667772"),("D","1|999992")))
-    val fullRDD1 =  fullRDDTable.leftOuterJoin(newRDD)
-    val bbb = fullRDD1.filter(x=>if(x._2._2.isEmpty) true else false).map(x=>x._2._1)
-    bbb.collect
-    bbb.saveAsTextFile("/tmp/tzm2")
-
-    fullRDD1.foreach(x=>println(x._2._2.isEmpty))
-
   }
 }
 
-/**
- * Spark 程序入口
- */
-object New2FullOnSpark extends App {
-  val config = new New2FullOnSparkConfig()
-  val job = new New2FullOnSparkJob()
-  val logger = job.logger
-  try {
-    job.start(config, args)
-  } catch {
-    case t: Throwable =>
-      t.printStackTrace()
-      if (StringUtils.isNotEmpty(t.getMessage)) logger.error(MESSAGE_ID_CNV1001, t.getMessage)
-      System.exit(1)
-  }
-}
+
