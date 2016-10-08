@@ -100,6 +100,20 @@ class UnfixedConversionOnSparkJob
       blockIndex += 1
     }
     logger.info("blockPositionQueue Info", "blockPositionQueueSize:"+blockPositionQueue.size())
+    try{
+      br.close()
+    }catch {
+      case e:Exception=>
+        e.printStackTrace()
+        logger.error("bufferedReader close error","bufferedReader close error")
+    }
+    try{
+      iffFileInputStream.close()
+    }catch {
+      case e:Exception=>
+        e.printStackTrace()
+        logger.error("iffFileInputStream close error","iffFileInputStream close error")
+    }
     blockPositionQueue
   }
 
@@ -243,8 +257,22 @@ class UnfixedConversionOnSparkJob
             recordList += sb.toString
           }
         }
+        try{
+          br.close()
+        }catch {
+          case e:Exception=>
+            e.printStackTrace()
+            logger.error("bufferedReader close error","bufferedReader close error")
+        }
       }
-      iffFileSourceInputStream.close()
+      try{
+        iffFileSourceInputStream.close()
+      }catch {
+        case e:Exception=>
+          e.printStackTrace()
+          logger.error("iffFileInputStream close error","iffFileInputStream close error")
+      }
+
       recordList.iterator
     }
     convertByPartitionsFunction

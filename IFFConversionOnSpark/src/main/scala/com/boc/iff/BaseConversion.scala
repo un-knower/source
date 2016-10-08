@@ -9,9 +9,10 @@ import com.boc.iff.DFSUtils.FileMode
 import com.boc.iff.IFFConversion._
 import com.boc.iff.model._
 import org.apache.commons.lang3.StringUtils
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs._
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import com.boc.iff.exception._
+import org.apache.hadoop.io.IOUtils
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -208,9 +209,41 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         throw MaxErrorNumberException("errorRec:" + errorRec + "iffConversionConfig.fileMaxError" + iffConversionConfig.fileMaxError)
       }
     }
+    combineMutilFileToSingleFile(errorDir)
     DFSUtils.deleteDir(tempDir)
   }
 
+  protected def combineMutilFileToSingleFile(path:String):Unit={
+    val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
+    val sourceFilePath = new Path(path)
+    val target = "%s/%s".format(path,"TARGET")
+    val targetFilePath = new Path(target)
+    val out = fileSystem.create(targetFilePath)
+    val fileStatus = fileSystem.getFileStatus(sourceFilePath)
+    val fileStatusStrack:mutable.Stack[FileStatus] = new mutable.Stack[FileStatus]()
+    fileStatusStrack.push(fileStatus)
+    while(!fileStatusStrack.isEmpty){
+      val fst = fileStatusStrack.pop()
+      if(fst.isDirectory){
+        val fileStatusS = fileSystem.listStatus(fst.getPath)
+        for(f<-fileStatusS){
+          fileStatusStrack.push(f)
+        }
+      }else{
+        val in = fileSystem.open(fst.getPath)
+        IOUtils.copyBytes(in, out, 4096, false)
+        in.close(); //完成后，关闭当前文件输入流
+      }
+    }
+    out.close();
+    val files = fileSystem.listStatus(sourceFilePath)
+
+    for(f<-files){
+      if(!f.getPath.toString.endsWith("TARGET")){
+        fileSystem.delete(f.getPath, true)
+      }
+    }
+  }
   /**
     * 转换 IFF 数据文件
     */

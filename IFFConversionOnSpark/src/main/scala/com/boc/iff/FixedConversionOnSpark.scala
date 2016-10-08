@@ -85,7 +85,13 @@ class FixedConversionOnSparkJob
         }
       }
     }
-    iffFileInputStream.close()
+    try{
+      iffFileInputStream.close()
+    }catch {
+      case e:Exception=>
+        e.printStackTrace()
+        logger.error("iffFileInputStream close error","iffFileInputStream close error")
+    }
     blockPositionQueue
   }
 
@@ -230,7 +236,13 @@ class FixedConversionOnSparkJob
           currentBlockReadBytesCount += recordLength
         }
       }
-      iffFileSourceInputStream.close()
+      try{
+        iffFileSourceInputStream.close()
+      }catch {
+        case e:Exception=>
+          e.printStackTrace()
+          logger.error("iffFileInputStream close error","iffFileInputStream close error")
+      }
       recordList.iterator
     }
     convertByPartitionsFunction
