@@ -1,12 +1,13 @@
 package com.boc.iff
 
 import java.nio.charset.CharsetDecoder
+import java.text.DecimalFormat
 
 import com.boc.iff.model._
-import org.apache.commons.lang3.StringUtils
 
 import scala.collection.{JavaConversions, mutable}
 import ognl.Ognl
+import org.apache.commons.lang.StringUtils
 
 
 /**
@@ -45,8 +46,23 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
       case fieldType@IFFBinary() => convert(fieldType, fieldValue)
       case fieldType@IFFInteger() => convert(fieldType, fieldValue)
       case fieldType@CString() => convert(fieldType, fieldValue)
-      case fieldType@CDecimal() => convert(fieldType, fieldValue)
-      case fieldType@CInteger() => convert(fieldType, fieldValue)
+      case fieldType@CDecimal() =>
+        if(StringUtils.isNotEmpty(fieldValue)){
+          var pattern = "#"*(fieldType.precision-fieldType.scale)
+          if(fieldType.scale>0){
+            pattern += "."+"#"*fieldType.scale
+          }
+          val format = new DecimalFormat(pattern)
+          fieldValue = format.format(fieldValue.toDouble)
+        }
+        convert(fieldType, fieldValue)
+      case fieldType@CInteger() =>
+        if(StringUtils.isNotEmpty(fieldValue)){
+          val pattern = "#"*(fieldType.maxlength)
+          val format = new DecimalFormat(pattern)
+          fieldValue = format.format(fieldValue.toInt)
+        }
+        convert(fieldType, fieldValue)
       case fieldType@CDate() => convert(fieldType, fieldValue)
       case fieldType@CTime() => convert(fieldType, fieldValue)
       case fieldType@CTimestamp() => convert(fieldType, fieldValue)

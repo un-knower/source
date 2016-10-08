@@ -1,6 +1,9 @@
 package com.boc.iff
 
+import java.text.DecimalFormat
+
 import com.boc.iff.model._
+import org.apache.commons.lang.StringUtils
 
 import scala.collection.mutable.HashMap
 
@@ -16,7 +19,8 @@ class CommonFieldValidatorContext() extends Serializable {
 
   def validateField(iffField: IFFField, fieldValues: HashMap[String,Any]) = {
     val fieldType = iffField.typeInfo
-    val fieldValue = fieldValues.getOrElse(iffField.name, "").toString
+    var fieldValue = fieldValues.getOrElse(iffField.name, "").toString
+
     val normalCheck = fieldType match {
       case fieldType@IFFDate() => validate(fieldType, fieldValue)
       case fieldType@IFFTime() => validate(fieldType, fieldValue)
@@ -32,8 +36,23 @@ class CommonFieldValidatorContext() extends Serializable {
       case fieldType@IFFInteger() => validate(fieldType, fieldValue)
       case fieldType@IFFDouble() => validate(fieldType, fieldValue)
       case fieldType@CString() => validate(fieldType, fieldValue)
-      case fieldType@CDecimal() => validate(fieldType, fieldValue)
-      case fieldType@CInteger() => validate(fieldType, fieldValue)
+      case fieldType@CDecimal() =>
+        if(StringUtils.isNotEmpty(fieldValue)){
+          var pattern = "#"*(fieldType.precision-fieldType.scale)
+          if(fieldType.scale>0){
+            pattern += "."+"#"*fieldType.scale
+          }
+          val format = new DecimalFormat(pattern)
+          fieldValue = format.format(fieldValue.toDouble)
+        }
+        validate(fieldType, fieldValue)
+      case fieldType@CInteger() =>
+        if(StringUtils.isNotEmpty(fieldValue)){
+          val pattern = "#"*(fieldType.maxlength)
+          val format = new DecimalFormat(pattern)
+          fieldValue = format.format(fieldValue.toInt)
+        }
+        validate(fieldType, fieldValue)
       case fieldType@CDate() => validate(fieldType, fieldValue)
       case fieldType@CTime() => validate(fieldType, fieldValue)
       case fieldType@CTimestamp() => validate(fieldType, fieldValue)

@@ -1,6 +1,8 @@
 package com.boc.iff
 
+import java.io.FileInputStream
 import java.text.SimpleDateFormat
+import java.util.Properties
 
 import com.boc.iff.model.{CDate, CDecimal, CInteger, CTime, CTimestamp, IFFDecimalType, IFFFieldType, IFFMaxlengthType}
 import ognl.Ognl
@@ -11,6 +13,13 @@ import scala.collection.{JavaConversions, mutable}
   * Created by birdie on 8/25/16.
   */
 trait FieldsCheck {
+/*
+
+  val logger = new ECCLogger()
+  val prop = new Properties()
+  prop.load(new FileInputStream("/app/birdie/bochk/IFFConversion/config/config.properties"))
+  logger.configure(prop)
+*/
 
 
 
@@ -99,8 +108,12 @@ trait FieldsCheck {
     if(StringUtils.isEmpty(value)){
       true
     }else {
-      val regxDecimal =
-        """(-?(?:[1-9]\d{0,""" + len1 +"""}|0)(?:\.\d{1,""" + len2 +"""})?)"""
+      var regxDecimal =
+        """(-?(?:[1-9]\d{0,""" + len1 +"""}|0)"""
+      if(len2>0) {
+        regxDecimal +="""(?:\.\d{1,""" + len2 +"""})?"""
+      }
+      regxDecimal+=""")"""
       checkRegx(value, regxDecimal)
     }
   }
@@ -203,8 +216,5 @@ object FieldValidator extends FieldsCheck {
     }
 
   }
-
-
-
 
 }

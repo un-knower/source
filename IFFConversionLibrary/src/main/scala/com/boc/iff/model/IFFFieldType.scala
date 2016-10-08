@@ -27,7 +27,7 @@ sealed trait IFFMaxlengthType{
 }
 
 sealed trait IFFDateTimeType{
-  var pattern:String = "yyyy-MM-dd"
+  var pattern:String = "yyyyMMdd"
 }
 sealed trait IFFHostFile{
   var hostFile: Boolean = false
@@ -135,7 +135,10 @@ object IFFFieldType {
     }
     fieldType match {
       case fieldType: IFFDateTimeType =>
-        fieldType.pattern = stringTokenizer.nextToken
+        fieldType.pattern = stringTokenizer.hasMoreTokens match{
+          case true => stringTokenizer.nextToken
+          case _ =>  "yyyyMMdd"
+        }
       case _ =>
     }
 

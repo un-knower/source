@@ -168,6 +168,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       val tempOutputDir = "%s/%05d".format(tempDir, blockIndex)
       val errorOutputDir = "%s/%05d".format(errorDir, blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
+      convertedRecords.cache()
       val errorRcdRDD = convertedRecords.filter(_.endsWith("ERROR"))
       if(iffConversionConfig.fileMaxError>0) {
         val errorRecordNumber = errorRcdRDD.count()

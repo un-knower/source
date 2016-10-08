@@ -27,7 +27,11 @@ class FixedConversionOnSparkJob
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, iffFileInfo.recordLength + 1)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
-    val lengthOfLineEnd: Int = 1
+    //换行符的长度DOS是两位，UNIX是一位
+    var lengthOfLineEnd: Int = 1
+    if("DOS".equals(iffConversionConfig.fileSystemType)){
+      lengthOfLineEnd = 2
+    }
     logger.info("recordLength","recordLength"+iffFileInfo.recordLength)
     val recordBuffer = new Array[Byte](iffFileInfo.recordLength + lengthOfLineEnd) //把换行符号也读入到缓冲byte
     var totalBlockReadBytesCount: Long = 0
@@ -95,6 +99,11 @@ class FixedConversionOnSparkJob
     val iffMetadata = this.iffMetadata
     val iffFileInfo = this.iffFileInfo
     val fieldDelimiter = this.fieldDelimiter
+    //换行符的长度DOS是两位，UNIX是一位
+    var lengthOfLineEnd: Int = 1
+    if("DOS".equals(iffConversionConfig.fileSystemType)){
+      lengthOfLineEnd = 2
+    }
     implicit val configuration = sparkContext.hadoopConfiguration
     val hadoopConfigurationMap = mutable.HashMap[String, String]()
     val iterator = configuration.iterator()
@@ -160,7 +169,7 @@ class FixedConversionOnSparkJob
           val skipped = iffFileSourceInputStream.skip(restToSkip)
           restToSkip = restToSkip - skipped
         }
-        val recordLen = iffFileInfo.recordLength + 1
+        val recordLen = iffFileInfo.recordLength + lengthOfLineEnd
         val recordBytes = new Array[Byte](recordLen)
         while (currentBlockReadBytesCount < blockSize) {
           var recordLength: Int = 0
@@ -201,13 +210,17 @@ class FixedConversionOnSparkJob
           import com.boc.iff.CommonFieldValidatorContext._
           implicit val validContext = new CommonFieldValidatorContext
           for (iffField <- iffMetadata.body.fields if success) {
-            sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
-            sb ++= fieldDelimiter
-            success = if (iffField.validateField(dataMap)) true else false
-            errorMessage = if (!success) "ERROR validateField" else ""
+            try {
+              sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
+              sb ++= fieldDelimiter
+              success = if (iffField.validateField(dataMap)) true else false
+              errorMessage = if (!success) "ERROR validateField" else ""
+            }catch{
+              case e:Exception=>
+                success = false
+                errorMessage = iffField.name+" "+e.getMessage
+            }
           }
-
-
           if (!success) {
             sb.setLength(0)
             sb.append(new String(recordBytes, iffMetadata.sourceCharset)).append(errorMessage).append("ERROR")

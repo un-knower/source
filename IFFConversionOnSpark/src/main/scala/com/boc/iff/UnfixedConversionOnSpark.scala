@@ -29,6 +29,11 @@ class UnfixedConversionOnSparkJob
     logger.info("blockSize","blockSize:"+blockSize)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     var totalBlockReadBytesCount: Long = 0
+    //换行符的长度DOS是两位，UNIX是一位
+    var lengthOfLineEnd: Int = 1
+    if("DOS".equals(iffConversionConfig.fileSystemType)){
+      lengthOfLineEnd = 2
+    }
     val iffFileInputStream = openIFFFileInputStream(iffConversionConfig.iffFileInputPath+iffConversionConfig.filename)
     var blockIndex: Int = 0
     var endOfFile = false
@@ -64,14 +69,17 @@ class UnfixedConversionOnSparkJob
             } else {
               //. 检查记录的列数
               if (countLineNumber == 0 ) {
-                val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(lineStr,iffMetadata.srcSeparator)
-                if((lineSeq.length -1)!= iffMetadata.body.getSourceLength) {
-                  logger.error("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq.length + " iffMetadata.body" + iffMetadata.body.getSourceLength, "file number is not right")
-                  throw RecordNotFixedException("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq.length + " iffMetadata.body" + iffMetadata.body.getSourceLength)
+                var lineSeq:Int = StringUtils.splitByWholeSeparatorPreserveAllTokens(lineStr,iffMetadata.srcSeparator).length
+                if(lineStr.endsWith(iffMetadata.srcSeparator)){
+                  lineSeq -= 1;
+                }
+                if(lineSeq!= iffMetadata.body.getSourceLength) {
+                  logger.error("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq + " iffMetadata.body" + iffMetadata.body.getSourceLength, "file number is not right")
+                  throw RecordNotFixedException("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq + " iffMetadata.body" + iffMetadata.body.getSourceLength)
                 }
               }
               //换行符号
-              currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length+1
+              currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length+lengthOfLineEnd
              // logger.info("block Info", "第" + blockIndex + "块" + currentLineLength+" data:="+lineStr)
               if (endOfFile || (currentBlockReadBytesCount + currentLineLength) > blockSize) {
                 canRead = false
@@ -106,6 +114,11 @@ class UnfixedConversionOnSparkJob
     val iffFileInfo = this.iffFileInfo
     val fieldDelimiter = this.fieldDelimiter
     val lineSplit = iffMetadata.srcSeparator
+    //换行符的长度DOS是两位，UNIX是一位
+    var lengthOfLineEnd: Int = 1
+    if("DOS".equals(iffConversionConfig.fileSystemType)){
+      lengthOfLineEnd = 2
+    }
     implicit val configuration = sparkContext.hadoopConfiguration
     val hadoopConfigurationMap = mutable.HashMap[String,String]()
     val iterator = configuration.iterator()
@@ -164,11 +177,8 @@ class UnfixedConversionOnSparkJob
         else iffFileInputStream
       val inputStream = iffFileSourceInputStream.asInstanceOf[java.io.InputStream]
       logger.info("blockPositionIterator:","blockPositionIterator"+charset)
-
       while(blockPositionIterator.hasNext){
         val (blockIndex, blockPosition, blockSize) = blockPositionIterator.next()
-        logger.info("blockInfo","posistionQueus("+blockIndex+","+blockPosition+","+blockSize+")")
-        logger.info("blockPositionIterator.hasNext:","blockPositionIterator.hasNext")
         var currentBlockReadBytesCount: Long = 0
         var restToSkip = blockPosition
         while (restToSkip > 0) {
@@ -176,23 +186,14 @@ class UnfixedConversionOnSparkJob
           restToSkip = restToSkip - skipped
         }
         val br = new BufferedReader(new InputStreamReader(inputStream,charset))
-        logger.info("chartSet","chartSet"+iffMetadata.sourceCharset)
         while ( currentBlockReadBytesCount < blockSize ) {
           val currentLine = br.readLine()
 
           if (StringUtils.isNotEmpty(currentLine.trim)) {
 
             // logger.info("currentLine:","currentLine"+currentLine)
-            var recordLength: Int = 0
-            try {
-              recordLength = currentLine.getBytes(iffMetadata.sourceCharset).length
-            } catch {
-              case e: Exception =>
-                logger.info("currentLine:", "currentLine" + currentLine + " currentBlockReadBytesCount:" + currentBlockReadBytesCount)
-                throw e
-            }
-            currentBlockReadBytesCount += recordLength
-            currentBlockReadBytesCount += 1
+            val recordLength = currentLine.getBytes(iffMetadata.sourceCharset).length
+            currentBlockReadBytesCount += recordLength + lengthOfLineEnd
             val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(currentLine, lineSplit)
 
             var dataInd = 0
@@ -222,10 +223,16 @@ class UnfixedConversionOnSparkJob
               import com.boc.iff.CommonFieldValidatorContext._
               implicit val validContext = new CommonFieldValidatorContext
               for (iffField <- iffMetadata.body.fields if success && !iffField.isFiller) {
-                sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
-                sb ++= fieldDelimiter
-                success = if (iffField.validateField(dataMap)) true else false
-                errorMessage = if (!success) "ERROR validateField" else ""
+                try {
+                  sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
+                  sb ++= fieldDelimiter
+                  success = if (iffField.validateField(dataMap)) true else false
+                  errorMessage = if (!success) iffField.name + "ERROR validateField" else ""
+                }catch{
+                  case e:Exception=>
+                    success = false
+                    errorMessage = iffField.name+" "+e.getMessage
+                }
               }
             }
             if (!success) {
