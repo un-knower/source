@@ -49,7 +49,7 @@ trait DataProcess[T<:DataProcessConfig] {
   protected def checkFilesExists: Boolean = {
     if(!checkFileExists(dataProcessConfig.configFilePath)||
       !checkFileExists(dataProcessConfig.metadataFilePath)||
-      !checkFileExists(dataProcessConfig.dataFileInputPath)) {
+      !checkFileExists(dataProcessConfig.iffFileInputPath)) {
       false
     } else {
       true
@@ -170,8 +170,6 @@ trait DataProcess[T<:DataProcessConfig] {
   protected def loadMetadata(metadataFileName: String, encoding: String): Unit = {
     val metadataFile = new File(metadataFileName)
     var metadataXml = FileUtils.readFileToString(metadataFile, encoding)
-    metadataXml = StringUtils.replace(metadataXml, "com.boc.oms.model.", "com.boc.iff.model.")
-    metadataXml = StringUtils.replace(metadataXml, "com.boc.isb.util.iff.", "com.boc.iff.")
     val metadataXmlResource = new ByteArrayResource(metadataXml.getBytes(encoding))
     val appContext = new GenericXmlApplicationContext()
     appContext.setValidating(false)
@@ -298,7 +296,12 @@ trait DataProcess[T<:DataProcessConfig] {
     this.dataProcessConfig = config
     if(!prepare()) return
     processFile()
-    logger.info(MESSAGE_ID_CNV1001, "File Conversion Complete! File: " + config.dataFileInputPath)
+    if(dbManagers.nonEmpty){
+      for(dbManager<-dbManagers){
+        dbManager.patchIFFConversionConfig(config)
+      }
+    }
+    logger.info(MESSAGE_ID_CNV1001, "File Conversion Complete! File: " + config.iffFileInputPath)
   }
 }
 
