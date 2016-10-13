@@ -20,18 +20,17 @@ import ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
 
-class FixedConversionOnSparkJob
-  extends BaseConversionOnSparkJob[BaseConversionOnSparkConfig] {
+class MutilFixedConversionOnSparkJob
+  extends MutilConversionOnSparkJob[MutilConversionOnSparkConfig] {
 
-  protected def createBlockPositionQueue: java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
+  protected def createBlockPositionQueue(filePath:String): java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, iffFileInfo.recordLength + 1)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     logger.info("recordLength","recordLength"+iffFileInfo.recordLength)
     val recordBuffer = new Array[Byte](iffFileInfo.recordLength + iffConversionConfig.lengthOfLineEnd) //把换行符号也读入到缓冲byte
     var totalBlockReadBytesCount: Long = 0
-    val iffFileInputStream = openIFFFileBufferedInputStream(
-      iffConversionConfig.iffFileInputPath, iffFileInfo.isGzip, iffConversionConfig.readBufferSize)
+    val iffFileInputStream = openIFFFileInputStream(filePath)
     var blockIndex: Int = 0
     var endOfFile = false
     var countLineNumber: Int = 0
@@ -95,7 +94,7 @@ class FixedConversionOnSparkJob
     *
     * @return
     */
-  protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = {
+  protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = {
     val iffConversionConfig = this.iffConversionConfig
     val lengthOfLineEnd = iffConversionConfig.lengthOfLineEnd
     val iffMetadata = this.iffMetadata
@@ -113,7 +112,7 @@ class FixedConversionOnSparkJob
     val iffFileInputPathText = iffConversionConfig.iffFileInputPath
     val readBufferSize = iffConversionConfig.readBufferSize
 
-    val convertByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = { blockPositionIterator =>
+    val convertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = { blockPositionIterator =>
       val logger = new ECCLogger()
       logger.configure(prop)
       val recordList = ListBuffer[String]()
@@ -152,14 +151,13 @@ class FixedConversionOnSparkJob
         configuration.set(key, value)
       }
       val fileSystem = FileSystem.get(configuration)
-      val iffFileInputPath = new Path(iffFileInputPathText)
-      val iffFileInputStream = fileSystem.open(iffFileInputPath)
-      val iffFileSourceInputStream =
-        if (iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
-        else iffFileInputStream
-
       while (blockPositionIterator.hasNext) {
-        val (blockIndex, blockPosition, blockSize) = blockPositionIterator.next()
+        val (blockIndex, blockPosition, blockSize,filePath) = blockPositionIterator.next()
+        val iffFileInputPath = new Path(filePath)
+        val iffFileInputStream = fileSystem.open(iffFileInputPath)
+        val iffFileSourceInputStream =
+          if (iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
+          else iffFileInputStream
         var currentBlockReadBytesCount: Long = 0
         var restToSkip = blockPosition
         while (restToSkip > 0) {
@@ -226,13 +224,13 @@ class FixedConversionOnSparkJob
           recordList += sb.toString
           currentBlockReadBytesCount += recordLength
         }
-      }
-      try{
-        iffFileSourceInputStream.close()
-      }catch {
-        case e:Exception=>
-          e.printStackTrace()
-          logger.error("iffFileInputStream close error","iffFileInputStream close error")
+        try{
+          iffFileSourceInputStream.close()
+        }catch {
+          case e:Exception=>
+            e.printStackTrace()
+            logger.error("iffFileInputStream close error","iffFileInputStream close error")
+        }
       }
       recordList.iterator
     }
@@ -244,9 +242,9 @@ class FixedConversionOnSparkJob
 /**
   * Spark 程序入口
   */
-object FixedConversionOnSpark extends App {
-  val config = new BaseConversionOnSparkConfig()
-  val job = new FixedConversionOnSparkJob()
+object MutilFixedConversionOnSpark extends App {
+  val config = new MutilConversionOnSparkConfig()
+  val job = new MutilFixedConversionOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)

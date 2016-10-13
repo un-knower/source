@@ -31,7 +31,7 @@ class IFFField extends Serializable {
   var typeInfo: IFFFieldType = null
 
   @BooleanBeanProperty
-  var filler: Boolean = false
+  var filter: Boolean = false
 
   @BooleanBeanProperty
   var constant: Boolean = false
@@ -61,7 +61,7 @@ class IFFField extends Serializable {
     sb ++= ("<property name=\"startPos\" value=\"" + startPos + "\"/>")
     sb ++= ("<property name=\"endPos\" value=\"" + endPos + "\"/>")
     sb ++= ("<property name=\"type\" value=\"" + `type` + "\"/>")
-    sb ++= ("<property name=\"filler\" value=\"" + (if (filler) "true" else "false") + "\"/>")
+    sb ++= ("<property name=\"filler\" value=\"" + (if (filter) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"required\" value=\"" + (if (required) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"constant\" value=\"" + (if (constant) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"nullValue\" value=\"" + nullValue + "\"/>")
@@ -82,7 +82,7 @@ class IFFField extends Serializable {
       "startPos" -> startPos,
       "endPos" -> endPos,
       "type" -> `type`,
-      "filler" -> filler,
+      "filter" -> filter,
       "constant" -> constant,
       "nullValue" -> nullValue,
       "defaultValue" -> defaultValue,

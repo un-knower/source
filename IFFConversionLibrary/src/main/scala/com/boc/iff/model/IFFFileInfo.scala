@@ -24,4 +24,7 @@ class IFFFileInfo extends Serializable{
 
   @BeanProperty
   var fileLength: Long = 0
+
+  @BooleanBeanProperty
+  var dir: Boolean = false
 }

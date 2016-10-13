@@ -50,7 +50,7 @@ class HiveDBManager(prefix: String, config: Properties)
       val field = new IFFField()
       field.name = fieldName
       field.`type` = "string"
-      field.filler = true
+      field.filter = true
       iffMetadata.body.fields = iffMetadata.body.fields.patch(index, Array[IFFField](field), 0)
     }
   }

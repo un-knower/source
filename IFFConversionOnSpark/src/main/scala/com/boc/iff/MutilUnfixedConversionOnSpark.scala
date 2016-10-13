@@ -20,16 +20,16 @@ import scala.concurrent._
 import ExecutionContext.Implicits.global
 
 
-class UnfixedConversionOnSparkJob
-  extends BaseConversionOnSparkJob[BaseConversionOnSparkConfig] {
+class MutilUnfixedConversionOnSparkJob
+  extends MutilConversionOnSparkJob[MutilConversionOnSparkConfig] {
 
-  protected def createBlockPositionQueue: java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
+  protected def createBlockPositionQueue(filePath:String): java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, 0)
     logger.info("blockSize","blockSize:"+blockSize)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     var totalBlockReadBytesCount: Long = 0
-    val iffFileInputStream = openIFFFileInputStream(iffConversionConfig.iffFileInputPath+iffConversionConfig.filename)
+    val iffFileInputStream = openIFFFileInputStream(filePath)
     var blockIndex: Int = 0
     var endOfFile = false
     val br = new BufferedReader(new InputStreamReader(iffFileInputStream.asInstanceOf[java.io.InputStream],IFFUtils.getCharset(iffMetadata.sourceCharset)))
@@ -117,13 +117,13 @@ class UnfixedConversionOnSparkJob
     *
     * @return
     */
-  protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = {
+  protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = {
     val iffConversionConfig = this.iffConversionConfig
+    val lengthOfLineEnd = iffConversionConfig.lengthOfLineEnd
     val iffMetadata = this.iffMetadata
     val iffFileInfo = this.iffFileInfo
     val fieldDelimiter = this.fieldDelimiter
     val lineSplit = iffMetadata.srcSeparator
-    val lengthOfLineEnd = iffConversionConfig.lengthOfLineEnd
     implicit val configuration = sparkContext.hadoopConfiguration
     val hadoopConfigurationMap = mutable.HashMap[String,String]()
     val iterator = configuration.iterator()
@@ -133,11 +133,10 @@ class UnfixedConversionOnSparkJob
       val entry = iterator.next()
       hadoopConfigurationMap += entry.getKey -> entry.getValue
     }
-    val iffFileInputPathText = iffConversionConfig.iffFileInputPath
     val readBufferSize = iffConversionConfig.readBufferSize
 
 
-    val convertByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = { blockPositionIterator =>
+    val convertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = { blockPositionIterator =>
       val logger = new ECCLogger()
       logger.configure(prop)
       val recordList = ListBuffer[String]()
@@ -175,15 +174,15 @@ class UnfixedConversionOnSparkJob
         configuration.set(key, value)
       }
       val fileSystem = FileSystem.get(configuration)
-      val iffFileInputPath = new Path(iffFileInputPathText)
-      val iffFileInputStream = fileSystem.open(iffFileInputPath)
-      val iffFileSourceInputStream =
-        if(iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
-        else iffFileInputStream
-      val inputStream = iffFileSourceInputStream.asInstanceOf[java.io.InputStream]
       logger.info("blockPositionIterator:","blockPositionIterator"+charset)
       while(blockPositionIterator.hasNext){
-        val (blockIndex, blockPosition, blockSize) = blockPositionIterator.next()
+        val (blockIndex, blockPosition, blockSize,filePath) = blockPositionIterator.next()
+        val iffFileInputPath = new Path(filePath)
+        val iffFileInputStream = fileSystem.open(iffFileInputPath)
+        val iffFileSourceInputStream =
+          if(iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
+          else iffFileInputStream
+        val inputStream = iffFileSourceInputStream.asInstanceOf[java.io.InputStream]
         var currentBlockReadBytesCount: Long = 0
         var restToSkip = blockPosition
         while (restToSkip > 0) {
@@ -255,15 +254,14 @@ class UnfixedConversionOnSparkJob
             e.printStackTrace()
             logger.error("bufferedReader close error","bufferedReader close error")
         }
+        try{
+          iffFileSourceInputStream.close()
+        }catch {
+          case e:Exception=>
+            e.printStackTrace()
+            logger.error("iffFileInputStream close error","iffFileInputStream close error")
+        }
       }
-      try{
-        iffFileSourceInputStream.close()
-      }catch {
-        case e:Exception=>
-          e.printStackTrace()
-          logger.error("iffFileInputStream close error","iffFileInputStream close error")
-      }
-
       recordList.iterator
     }
     convertByPartitionsFunction
@@ -273,9 +271,9 @@ class UnfixedConversionOnSparkJob
 /**
   *  Spark 程序入口
   */
-object UnfixedConversionOnSpark extends App{
-  val config = new BaseConversionOnSparkConfig()
-  val job = new UnfixedConversionOnSparkJob()
+object MutilUnfixedConversionOnSpark extends App{
+  val config = new MutilConversionOnSparkConfig()
+  val job = new MutilUnfixedConversionOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)
