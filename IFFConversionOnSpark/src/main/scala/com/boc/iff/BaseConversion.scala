@@ -211,6 +211,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       val future = futureQueue.dequeue()
       Await.ready(future, Duration.Inf)
     }
+    combineMutilFileToSingleFile(errorDir)
     if(iffConversionConfig.fileMaxError>0) {
       val errorRec = broadcast.value.foldLeft(0L)(_ + _)
       logger.info("errorRec", "errorRec:" + errorRec)
@@ -218,7 +219,6 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         throw MaxErrorNumberException("errorRecException:File error recordNumber is bigger than limited, File error recordNumber:" + errorRec + ", file limited errorNumber" + iffConversionConfig.fileMaxError)
       }
     }
-    combineMutilFileToSingleFile(errorDir)
     DFSUtils.deleteDir(tempDir)
   }
 

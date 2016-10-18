@@ -54,6 +54,12 @@ class IFFField extends Serializable {
   @BeanProperty
   var validators: java.util.List[String] = new util.ArrayList[String]
 
+  @BeanProperty
+  var primaryKey: String = ""
+
+  @BeanProperty
+  var virtual: String = ""
+
   def toXMLString: String = {
     val sb = new StringBuilder
     sb ++= ("<bean class=\"" + this.getClass.getName + "\">")
@@ -61,7 +67,7 @@ class IFFField extends Serializable {
     sb ++= ("<property name=\"startPos\" value=\"" + startPos + "\"/>")
     sb ++= ("<property name=\"endPos\" value=\"" + endPos + "\"/>")
     sb ++= ("<property name=\"type\" value=\"" + `type` + "\"/>")
-    sb ++= ("<property name=\"filler\" value=\"" + (if (filter) "true" else "false") + "\"/>")
+    sb ++= ("<property name=\"filter\" value=\"" + (if (filter) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"required\" value=\"" + (if (required) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"constant\" value=\"" + (if (constant) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"nullValue\" value=\"" + nullValue + "\"/>")
@@ -72,6 +78,8 @@ class IFFField extends Serializable {
       sb ++= formatSpec.toXMLString
       sb ++= "</property>"
     }
+    sb ++= ("<property name=\"primaryKey\" value=\"" + primaryKey + "\"/>")
+    sb ++= ("<property name=\"virtual\" value=\"" + virtual + "\"/>")
     sb ++= "</bean>"
     sb.toString
   }
@@ -87,7 +95,9 @@ class IFFField extends Serializable {
       "nullValue" -> nullValue,
       "defaultValue" -> defaultValue,
       "expression" -> expression,
-      "formatSpec" -> formatSpec
+      "formatSpec" -> formatSpec,
+      "primaryKey" -> primaryKey,
+      "virtual" -> virtual
     )
     val sb = new StringBuilder()
     sb ++= "IFFField ["
