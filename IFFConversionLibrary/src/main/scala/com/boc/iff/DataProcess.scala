@@ -27,7 +27,7 @@ trait DataProcess[T<:DataProcessConfig] {
   protected var dataProcessConfig: T = _
   protected val dataSourceConfig = new DataSourceConfig()
   protected var targetDataSource: DataSource = null
-
+  protected var fieldDelimiter = DEFAULT_FIELD_DELIMITER       //列分隔符
   protected var iffMetadata: IFFMetadata = null
 
   val logger = new ECCLogger()
@@ -64,6 +64,7 @@ trait DataProcess[T<:DataProcessConfig] {
     prop.load(new FileInputStream(dataProcessConfig.configFilePath))
     logger.configure(prop)
     systemName = prop.getProperty(PROP_NAME_SYSTEM_NAME, DEFAULT_SYSTEM_NAME)
+    fieldDelimiter = prop.getProperty(PROP_NAME_FIELD_DELIMITER, DEFAULT_FIELD_DELIMITER)
     accountDateField = prop.getProperty(PROP_NAME_ACCOUNT_DATE_FIELD, DEFAULT_ACCOUNT_DATE_FIELD)
     ECCLoggerConfigurator.systemName = systemName
 

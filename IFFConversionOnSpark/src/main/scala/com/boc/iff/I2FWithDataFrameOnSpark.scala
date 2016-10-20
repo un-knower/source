@@ -7,6 +7,8 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import java.io.{BufferedInputStream, File, FileInputStream}
 import java.sql.SQLClientInfoException
 
+import com.boc.iff.exception.PrimaryKeyMissException
+
 class I2FWithDataFrameOnSparkJob
   extends DataProcessOnSparkJob {
 
@@ -14,17 +16,38 @@ class I2FWithDataFrameOnSparkJob
     println(this.dataProcessConfig.toString);
     //删除dataProcessConfig.tempDir
     val primaryFields = iffMetadata.getBody.fields.filter(_.getPrimaryKey.equals("Y")) //
+    if(primaryFields==null||primaryFields.size==0){
+        throw PrimaryKeyMissException("Primary Key of table"+dataProcessConfig.fTableName+" is required")
+    }
     val sqlContext = new org.apache.spark.sql.SQLContext(sparkContext)
-    val fullDF = sparkContext.table(dataProcessConfig.dbName+"."+dataProcessConfig.fTableName)
-    val newRDD = sparkContext.textFile(this.dataProcessConfig.iffFileInputPath).map(basePk2Map)
-    val fullRDDTable = sparkContext.textFile(this.dataProcessConfig.datFileOutputPath).map(basePk2Map)
-    val fullRDD1 =  fullRDDTable.leftOuterJoin(newRDD)
-    val noChangeRdd = fullRDD1.filter(x=>if(x._2._2.isEmpty) true else false).map(x=>x._2._1)
-    noChangeRdd.saveAsTextFile(dataProcessConfig.tempDir)
-
-    //删除datFileOutputPath
-    //move dataProcessConfig.tempDir 到datFileOutputPath
-    //move dataProcessConfig.iffFileInputPath 到datFileOutputPath
+    val fFableDF = sqlContext.table(dataProcessConfig.dbName+"."+dataProcessConfig.fTableName)
+    val iTableDF = sqlContext.table(dataProcessConfig.dbName+"."+dataProcessConfig.iTableName)
+    fFableDF.registerTempTable("full")
+    iTableDF.registerTempTable("new")
+    val sql = new StringBuffer("select g1.* from full f left join new n on ")
+    for(i<-0 until primaryFields.size){
+      if(i>0){
+        sql.append(" and ")
+      }
+      sql.append(" f."+primaryFields(i).name+"=n."+primaryFields(i).name)
+    }
+    sql.append(" where f."+primaryFields(0).name+" is null ")
+    val notChangeDF = sqlContext.sql(sql.toString)
+    val newFullRDD = notChangeDF.unionAll(iTableDF).rdd.map(row=>row.toSeq.reduceLeft(_+this.fieldDelimiter+_))
+    //newFullDF.write.insertInto(dataProcessConfig.dbName+"."+dataProcessConfig.fTableName)
+    val tempDir = getTempDir(dataProcessConfig.fTableName)
+    implicit val configuration = sparkContext.hadoopConfiguration
+    DFSUtils.deleteDir(tempDir)
+    newFullRDD.saveAsTextFile(tempDir)
+    val fileSystem = FileSystem.get(configuration)
+    val fileStatusArray = fileSystem.listStatus(new Path(tempDir)).filter(_.getLen > 0)
+    for (fileStatusIndex <- fileStatusArray.indices.view) {
+      val fileStatus = fileStatusArray(fileStatusIndex)
+      val fileName = "%s/%05d".format(dataProcessConfig.datFileOutputPath, fileStatusIndex)
+      val srcPath = fileStatus.getPath
+      val dstPath = new Path(fileName)
+      DFSUtils.moveFile(srcPath, dstPath)
+    }
 
   }
 }
