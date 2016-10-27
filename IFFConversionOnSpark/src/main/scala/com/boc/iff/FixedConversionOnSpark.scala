@@ -37,6 +37,7 @@ class FixedConversionOnSparkJob
     var countLineNumber: Int = 0
     val endOfFileStr = new StringBuffer()
     var recordEnd = false
+    val validateRecNumFlag = if("Y".equals(iffConversionConfig.validateRecNumFlag))true else false
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
       var canRead = true
@@ -67,12 +68,12 @@ class FixedConversionOnSparkJob
       totalBlockReadBytesCount += currentBlockReadBytesCount
       blockIndex += 1
     }
-    if (endOfFileStr.length() > 0) {
-      println(endOfFileStr.toString)
+    if (validateRecNumFlag&&endOfFileStr.length() > 0) {
       val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(endOfFileStr.toString, iffConversionConfig.fileEOFPrefix)
       for (s <- lineSeq) {
         if (s.startsWith("RecNum")) {
-          val recNum = s.substring(("RecNum=").length, s.length - (iffConversionConfig.lengthOfLineEnd))
+          var recNum = s.substring(("RecNum=").length, s.length - (iffConversionConfig.lengthOfLineEnd))
+          if(StringUtils.isNotEmpty(recNum))recNum=recNum.trim
           if (recNum.toInt != countLineNumber) {
             logger.error("file " + iffConversionConfig.filename + " number is not right " + recNum.toInt + countLineNumber, "file number is not right")
             throw RecordNumberErrorException("file " + iffConversionConfig.filename + " record number is not right,Expect record number:"+ countLineNumber+" Actually record number:" + recNum.toInt )

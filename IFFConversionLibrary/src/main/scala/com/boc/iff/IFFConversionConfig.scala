@@ -32,7 +32,8 @@ class IFFConversionConfig extends AppConfig {
   var fileEOFPrefix: String = ""                                            //文件结尾标识符
   var fileMaxError: Long = 100                                               //最大文件错误条数
   var fileMaxBlank: Long = 0                                                 //文件最大空行数
-  var lengthOfLineEnd: Int = 1                                               //文件系统类型，UNIX/DOS
+  var lengthOfLineEnd: Int = 1                                               //文件系统类型
+  var validateRecNumFlag: String = "Y"                                              //文件记录数校验开关，Y为开启
   private val dateFormat = new SimpleDateFormat(ACCOUNT_DATE_PATTERN)
 
   /**
@@ -108,6 +109,10 @@ class IFFConversionConfig extends AppConfig {
     optionParser.opt[Int]("dat-file-length-of-lineEnd")
       .text("DAT File length of lineEnd")
       .foreach(this.lengthOfLineEnd = _)
+    optionParser.opt[String]("file-validate-recNum-Flag")
+      .text("file validate recNum Flag")
+      .foreach(this.validateRecNumFlag = _)
+
   }
 
   override def toString = {

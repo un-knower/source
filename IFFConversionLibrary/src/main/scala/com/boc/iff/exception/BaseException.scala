@@ -14,3 +14,5 @@ case class RecordNotFixedException(val message:String) extends Exception(message
 
 case class MaxBlankNumberException(val message:String) extends Exception(message)
 
+case class PrimaryKeyMissException(val message:String) extends Exception(message)
+

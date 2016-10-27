@@ -39,6 +39,7 @@ class UnfixedConversionOnSparkJob
     val needCheckBlank: Boolean = if(iffConversionConfig.fileMaxBlank==0) false else true
 
     logger.info("chartSet","chartSet"+iffMetadata.sourceCharset)
+    val validateRecNumFlag = if("Y".equals(iffConversionConfig.validateRecNumFlag))true else false
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
       var canRead = true
@@ -46,9 +47,10 @@ class UnfixedConversionOnSparkJob
       while (canRead) {
         val lineStr = br.readLine()
         if(lineStr!=null){
-          if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix)){
+          if(validateRecNumFlag&&lineStr.startsWith(iffConversionConfig.fileEOFPrefix)){
             if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
-              val recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
+              var recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
+              if(StringUtils.isNotEmpty(recNum))recNum=recNum.trim
               if(recNum.toInt!=countLineNumber){
                 logger.error("file "+iffConversionConfig.filename+ " number is not right "+recNum.toInt+countLineNumber,"file number is not right")
                 throw RecordNumberErrorException("file " + iffConversionConfig.filename + " record number is not right,Expect record number:"+ countLineNumber+" Actually record number:" + recNum.toInt )
