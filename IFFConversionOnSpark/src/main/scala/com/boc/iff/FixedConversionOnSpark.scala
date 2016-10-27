@@ -19,7 +19,9 @@ import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
 
-
+/**
+  * @author www.birdiexx.com
+  */
 class FixedConversionOnSparkJob
   extends BaseConversionOnSparkJob[BaseConversionOnSparkConfig] {
 
@@ -91,9 +93,10 @@ class FixedConversionOnSparkJob
     blockPositionQueue
   }
 
+
   /**
     * 创建一个方法 对一个分片（分区）的数据进行转换操作
-    *
+    *@author www.birdiexx.com
     * @return
     */
   protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = {
@@ -190,10 +193,14 @@ class FixedConversionOnSparkJob
             for (iffField <- iffMetadata.body.fields if (StringUtils.isEmpty(iffField.getExpression))) {
               val fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
               val fieldType = iffField.typeInfo
-              fieldType match {
-                case fieldType: CInteger => dataMap += (iffField.name -> fieldVal.toInt)
-                case fieldType: CDecimal => dataMap += (iffField.name -> fieldVal.toDouble)
-                case _ => dataMap += (iffField.name -> fieldVal)
+              if(StringUtils.isNotBlank(fieldVal)) {
+                fieldType match {
+                  case fieldType: CInteger => dataMap += (iffField.name -> fieldVal.toInt)
+                  case fieldType: CDecimal => dataMap += (iffField.name -> fieldVal.toDouble)
+                  case _ => dataMap += (iffField.name -> fieldVal)
+                }
+              }else{
+                dataMap += (iffField.name -> "")
               }
             }
           } catch {
@@ -242,8 +249,11 @@ class FixedConversionOnSparkJob
 
 }
 
+
+
 /**
   * Spark 程序入口
+  * @author www.birdiexx.com
   */
 object FixedConversionOnSpark extends App {
   val config = new BaseConversionOnSparkConfig()
@@ -264,3 +274,7 @@ object FixedConversionOnSpark extends App {
       System.exit(9)
   }
 }
+
+/**
+  * @author www.birdiexx.com
+  */

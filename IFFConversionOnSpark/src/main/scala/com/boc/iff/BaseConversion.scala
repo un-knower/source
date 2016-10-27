@@ -20,6 +20,9 @@ import scala.concurrent.duration.Duration
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 
+/**
+  * @author www.birdiexx.com
+  */
 class BaseConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig {
 
   var iffFileMode: DFSUtils.FileMode.ValueType = DFSUtils.FileMode.LOCAL
@@ -71,7 +74,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
 
   /**
     * 检查DFS上文件路径是否存在
-    *
+    *@author www.birdiexx.com
     * @param fileName 文件路径
     * @return
     */
@@ -86,7 +89,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
 
   /**
     * 检查文件路径是否存在
-    *
+    *@author www.birdiexx.com
     * @param fileName 文件路径
     * @return
     */
@@ -100,7 +103,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
 
   /**
     * 检查参数中定义的 配置文件、XML 元数据文件和 IFF 文件是否存在
-    *
+    *@author www.birdiexx.com
     * @return
     */
   override protected def checkFilesExists: Boolean = {
@@ -142,7 +145,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
 
   /**
     * 创建一个方法 对一个分片（分区）的数据进行转换操作
-    *
+    * @author www.birdiexx.com
     * @return
     */
   protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String])
@@ -215,7 +218,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     if(iffConversionConfig.fileMaxError>0) {
       val errorRec = broadcast.value.foldLeft(0L)(_ + _)
       logger.info("errorRec", "errorRec:" + errorRec)
-      if (errorRec > iffConversionConfig.fileMaxError) {
+      if (errorRec >= iffConversionConfig.fileMaxError) {
         throw MaxErrorNumberException("errorRecException:File error recordNumber is bigger than limited, File error recordNumber:" + errorRec + ", file limited errorNumber" + iffConversionConfig.fileMaxError)
       }
     }
@@ -255,6 +258,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
   }
   /**
     * 转换 IFF 数据文件
+    * @author www.birdiexx.com
     */
   override protected def convertFile(): Unit = {
     if(iffConversionConfig.autoDeleteTargetDir) deleteTargetDir()
@@ -274,7 +278,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     * 1. 检查输入文件是否存在
     * 2. 加载配置文件
     * 3. 查询目标表信息
-    *
+    *@author www.birdiexx.com
     * @return
     */
   override protected def prepare(): Boolean = {
@@ -299,7 +303,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
 
   /**
     * 注册使用 kryo 进行序列化的类
-    *d
+    *@author www.birdiexx.com
     *
     * @return
     **/

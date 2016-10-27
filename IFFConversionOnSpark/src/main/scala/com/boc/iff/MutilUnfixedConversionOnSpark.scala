@@ -19,7 +19,9 @@ import scala.concurrent.duration.Duration
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 
-
+/**
+  * @author www.birdiexx.com
+  */
 class MutilUnfixedConversionOnSparkJob
   extends MutilConversionOnSparkJob[MutilConversionOnSparkConfig] {
 
@@ -270,6 +272,7 @@ class MutilUnfixedConversionOnSparkJob
 }
 /**
   *  Spark 程序入口
+  *  @author www.birdiexx.com
   */
 object MutilUnfixedConversionOnSpark extends App{
   val config = new MutilConversionOnSparkConfig()

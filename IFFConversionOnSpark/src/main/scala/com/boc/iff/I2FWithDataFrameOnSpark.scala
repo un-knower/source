@@ -8,9 +8,13 @@ import java.io.{BufferedInputStream, File, FileInputStream}
 import java.sql.SQLClientInfoException
 
 import com.boc.iff.exception.PrimaryKeyMissException
+import org.apache.spark.sql.hive.HiveContext
 
+/**
+  * @author www.birdiexx.com
+  */
 class I2FWithDataFrameOnSparkJob
-  extends DataProcessOnSparkJob {
+  extends DataProcessOnSparkJob with Serializable{
 
   override def processFile = {
     println(this.dataProcessConfig.toString);
@@ -19,19 +23,24 @@ class I2FWithDataFrameOnSparkJob
     if(primaryFields==null||primaryFields.size==0){
         throw PrimaryKeyMissException("Primary Key of table"+dataProcessConfig.fTableName+" is required")
     }
-    val sqlContext = new org.apache.spark.sql.SQLContext(sparkContext)
+    logger.info("create sqlContext","create sqlContext")
+    val sqlContext = new HiveContext(sparkContext)
+    //val sqlContext = new org.apache.spark.sql.SQLContext(sparkContext)
+    logger.info("loadTable",dataProcessConfig.dbName+"."+dataProcessConfig.fTableName)
     val fFableDF = sqlContext.table(dataProcessConfig.dbName+"."+dataProcessConfig.fTableName)
+    logger.info("loadTable",dataProcessConfig.dbName+"."+dataProcessConfig.iTableName)
     val iTableDF = sqlContext.table(dataProcessConfig.dbName+"."+dataProcessConfig.iTableName)
     fFableDF.registerTempTable("full")
     iTableDF.registerTempTable("new")
-    val sql = new StringBuffer("select g1.* from full f left join new n on ")
+    val sql = new StringBuffer("select f.* from full f left join new n on ")
     for(i<-0 until primaryFields.size){
       if(i>0){
         sql.append(" and ")
       }
       sql.append(" f."+primaryFields(i).name+"=n."+primaryFields(i).name)
     }
-    sql.append(" where f."+primaryFields(0).name+" is null ")
+    sql.append(" where n."+primaryFields(0).name+" is null ")
+    logger.info("jop sql:",sql.toString)
     val notChangeDF = sqlContext.sql(sql.toString)
     val newFullRDD = notChangeDF.unionAll(iTableDF).rdd.map(row=>row.toSeq.reduceLeft(_+this.fieldDelimiter+_))
     //newFullDF.write.insertInto(dataProcessConfig.dbName+"."+dataProcessConfig.fTableName)
@@ -41,9 +50,15 @@ class I2FWithDataFrameOnSparkJob
     newFullRDD.saveAsTextFile(tempDir)
     val fileSystem = FileSystem.get(configuration)
     val fileStatusArray = fileSystem.listStatus(new Path(tempDir)).filter(_.getLen > 0)
+    DFSUtils.deleteDir(dataProcessConfig.fTableDatFilePath)
+    val datFileOutputPath = new Path(dataProcessConfig.fTableDatFilePath)
+    if (!fileSystem.exists(datFileOutputPath)){
+      logger.info(MESSAGE_ID_CNV1001, "Create Dir: " + datFileOutputPath.toString)
+      fileSystem.mkdirs(datFileOutputPath)
+    }
     for (fileStatusIndex <- fileStatusArray.indices.view) {
       val fileStatus = fileStatusArray(fileStatusIndex)
-      val fileName = "%s/%05d".format(dataProcessConfig.datFileOutputPath, fileStatusIndex)
+      val fileName = "%s/%05d".format(dataProcessConfig.fTableDatFilePath, fileStatusIndex)
       val srcPath = fileStatus.getPath
       val dstPath = new Path(fileName)
       DFSUtils.moveFile(srcPath, dstPath)
@@ -54,6 +69,7 @@ class I2FWithDataFrameOnSparkJob
 
 /**
  * Spark 程序入口
+  * @author www.birdiexx.com
  */
 object I2FWithDataFrameOnSparkJob extends App {
   val config = new DataProcessOnSparkConfig()
@@ -68,3 +84,7 @@ object I2FWithDataFrameOnSparkJob extends App {
       System.exit(1)
   }
 }
+
+/**
+  * @author www.birdiexx.com
+  */

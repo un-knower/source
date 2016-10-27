@@ -19,7 +19,9 @@ import scala.concurrent.duration.Duration
 import scala.concurrent._
 import ExecutionContext.Implicits.global
 
-
+/**
+  * @author www.birdiexx.com
+  */
 class UnfixedConversionOnSparkJob
   extends BaseConversionOnSparkJob[BaseConversionOnSparkConfig] {
 
@@ -211,11 +213,16 @@ class UnfixedConversionOnSparkJob
             try {
               for (iffField <- iffMetadata.body.fields if (StringUtils.isEmpty(iffField.getExpression))) {
                 val fieldType = iffField.typeInfo
-                fieldType match {
-                  case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)
-                  case fieldType: CDecimal => dataMap += (iffField.name -> lineSeq(dataInd).toDouble)
-                  case _ => dataMap += (iffField.name -> lineSeq(dataInd))
+                if(StringUtils.isNotBlank(lineSeq(dataInd))) {
+                  fieldType match {
+                    case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)
+                    case fieldType: CDecimal => dataMap += (iffField.name -> lineSeq(dataInd).toDouble)
+                    case _ => dataMap += (iffField.name -> lineSeq(dataInd))
+                  }
+                }else{
+                  dataMap += (iffField.name -> "")
                 }
+
                 dataInd += 1
               }
             } catch {
@@ -274,6 +281,7 @@ class UnfixedConversionOnSparkJob
 }
 /**
   *  Spark 程序入口
+  *  @author www.birdiexx.com
   */
 object UnfixedConversionOnSpark extends App{
   val config = new BaseConversionOnSparkConfig()

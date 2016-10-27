@@ -2,6 +2,7 @@ package com.boc.iff
 import com.boc.iff.model._
 /**
   * Created by cvinc on 2016/6/23.
+  * @author www.birdiexx.com
   */
 
 
@@ -125,5 +126,7 @@ object CommonFieldValidator {
     validator
   }
 
-
+  /**
+    * @author www.birdiexx.com
+    */
 }

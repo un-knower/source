@@ -9,6 +9,7 @@ import scala.collection.mutable
 
 /**
   * Created by cvinc on 2016/6/27.
+  * @author www.birdiexx.com
   */
 class IFFConversionConfig extends AppConfig {
 
@@ -22,7 +23,9 @@ class IFFConversionConfig extends AppConfig {
   var sliceSize: Int = 100 * 1024                                           //每个分片大小, 默认 100K
   var dbName: String = ""                                                   //目标数据库名
   var iTableName: String = ""                                               //目标数据库中增量表名
+  var iTableDatFilePath: String = ""                                        //增量表数据目录
   var fTableName: String = ""                                               //目标数据库中全量表名
+  var fTableDatFilePath: String = ""                                        //全量表数据目录
   var autoDeleteTargetDir: Boolean = true                                   //作业开始前是否自动清空目标目录, 默认 清空
   var readBufferSize: Int = 8 * 1024 * 1024                                 //文件读取缓冲区大小, 默认 8M
   var tempDir: String = "/tmp/birdie/IFFConversion"                         //临时目录
@@ -38,7 +41,7 @@ class IFFConversionConfig extends AppConfig {
 
   /**
     * 程序命令行参数定义及解析
-    *
+    * @author www.birdiexx.com
     * @param optionParser
     */
   override protected def makeOptions(optionParser: scopt.OptionParser[_]) = {
@@ -115,6 +118,10 @@ class IFFConversionConfig extends AppConfig {
 
   }
 
+  /**
+    * @author www.birdiexx.com
+    * @return
+    */
   override def toString = {
     val builder = new mutable.StringBuilder(super.toString)
     if(builder.nonEmpty) builder ++= "\n"

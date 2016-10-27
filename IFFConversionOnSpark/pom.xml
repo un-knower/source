@@ -217,6 +217,12 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-hive_${spark.scala.version}</artifactId>
+            <version>${spark.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.json4s</groupId>
             <artifactId>json4s-jackson_${spark.scala.version}</artifactId>
             <version>3.2.10</version>

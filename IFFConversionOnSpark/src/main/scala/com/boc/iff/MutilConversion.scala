@@ -21,6 +21,9 @@ import scala.concurrent._
 import ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
+/**
+  * @author www.birdiexx.com
+  */
 class MutilConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfig {
 
   var iffFileMode: DFSUtils.FileMode.ValueType = DFSUtils.FileMode.LOCAL
@@ -50,6 +53,9 @@ class MutilConversionOnSparkConfig extends IFFConversionConfig with SparkJobConf
   }
 }
 
+/**
+  * @author www.birdiexx.com
+  */
 trait MutilConversionOnSparkJob[T<:MutilConversionOnSparkConfig]
   extends IFFConversion[T] with SparkJob[T]  {
 
@@ -247,7 +253,7 @@ trait MutilConversionOnSparkJob[T<:MutilConversionOnSparkConfig]
 
   /**
     * 创建一个方法 对一个分片（分区）的数据进行转换操作
-    *
+    * @author www.birdiexx.com
     * @return
     */
   protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String])
@@ -321,6 +327,7 @@ trait MutilConversionOnSparkJob[T<:MutilConversionOnSparkConfig]
 
   /**
     * 转换 IFF 数据文件
+    * @author www.birdiexx.com
     */
   override protected def convertFile(): Unit = {
     if(iffConversionConfig.autoDeleteTargetDir) deleteTargetDir()
@@ -340,7 +347,7 @@ trait MutilConversionOnSparkJob[T<:MutilConversionOnSparkConfig]
     * 1. 检查输入文件是否存在
     * 2. 加载配置文件
     * 3. 查询目标表信息
-    *
+    * @author www.birdiexx.com
     * @return
     */
   override protected def prepare(): Boolean = {
@@ -367,8 +374,7 @@ trait MutilConversionOnSparkJob[T<:MutilConversionOnSparkConfig]
 
   /**
     * 注册使用 kryo 进行序列化的类
-    *d
-    *
+    * @author www.birdiexx.com
     * @return
     **/
   override protected def kryoClasses: Array[Class[_]] = {

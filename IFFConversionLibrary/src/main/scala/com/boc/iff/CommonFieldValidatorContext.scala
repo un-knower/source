@@ -9,6 +9,7 @@ import scala.collection.mutable.HashMap
 
 /**
   * Created by cvinc on 2016/6/8.
+  * @author www.birdiexx.com
   */
 class CommonFieldValidatorContext() extends Serializable {
 
@@ -80,4 +81,8 @@ object CommonFieldValidatorContext {
       override protected val commonFieldValidatorContext: CommonFieldValidatorContext = context
       override protected val iffField: IFFField = field
     }
+
+  /**
+    * @author www.birdiexx.com
+    */
 }

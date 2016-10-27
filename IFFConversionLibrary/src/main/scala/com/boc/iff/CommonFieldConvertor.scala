@@ -10,6 +10,7 @@ import org.apache.commons.lang3.StringUtils
 
 /**
   * Created by cvinc on 2016/6/23.
+  * @author www.birdiexx.com
   */
 
 @annotation.implicitNotFound(msg = "No implicit IFFFieldConvertor defined for ${T}.")
@@ -125,5 +126,7 @@ object CommonFieldConvertor {
     convertor
   }
 
-
+  /**
+    * @author www.birdiexx.com
+    */
 }

@@ -12,6 +12,7 @@ import org.apache.commons.lang.StringUtils
 
 /**
   * Created by cvinc on 2016/6/8.
+  * @author www.birdiexx.com
   */
 class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IFFFileInfo, val decoder: CharsetDecoder) extends Serializable {
 
@@ -81,6 +82,9 @@ sealed trait CommonFieldWithConvertor {
 
 }
 
+/**
+  * @author www.birdiexx.com
+  */
 object CommonFieldConvertorContext  {
   implicit def commonFieldWithConvertor(field: IFFField)
                                     (implicit context: CommonFieldConvertorContext): CommonFieldWithConvertor =

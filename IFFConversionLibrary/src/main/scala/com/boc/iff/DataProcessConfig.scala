@@ -7,6 +7,7 @@ import scala.collection.mutable
 
 /**
  * Created by Clevo on 2016/9/18.
+  * @author www.birdiexx.com
  */
 class DataProcessConfig extends IFFConversionConfig{
   private val dateFormat = new SimpleDateFormat(ACCOUNT_DATE_PATTERN)
