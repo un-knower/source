@@ -6,21 +6,46 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import java.io.{BufferedInputStream, File, FileInputStream}
 
-class I2FOnSparkJob
-  extends DataProcessOnSparkJob {
+import scala.collection.mutable.ArrayBuffer
+
+class I2FOnSparkJob  extends DataProcessOnSparkJob {
 
   override def processFile = {
     println(this.dataProcessConfig.toString);
+
     //删除dataProcessConfig.tempDir
     val fields: List[IFFField] = iffMetadata.getBody.fields
-    val tableFields = fields.filter(x=>x.filler!="Y")  //
-    val primaryFields = fields.filter(x=>x.getExpression!="Y") //
-    val basePk2Map={x:String =>(1,x)}
+    val tableFields = fields.filter(x=>x.filter!="Y")  //
+    val primaryFields :List[IFFField]= fields.filter(x=>x.getExpression!="Y") //
+
+    var pkPosition = ArrayBuffer[Int]()
+    for(v<-primaryFields){
+      pkPosition +=tableFields.indexOf(v)
+    }
+
+    val basePk2Map= (x:String) => {
+      val rowData = x.split("\\001")
+      var key=""
+      for(v<-pkPosition){
+        key+=rowData(v).trim
+      }
+      (key,x)
+    }
+
+
     val newRDD = sparkContext.textFile(this.dataProcessConfig.iffFileInputPath).map(basePk2Map)
     val fullRDDTable = sparkContext.textFile(this.dataProcessConfig.datFileOutputPath).map(basePk2Map)
+
+
+
     val fullRDD1 =  fullRDDTable.leftOuterJoin(newRDD)
     val noChangeRdd = fullRDD1.filter(x=>if(x._2._2.isEmpty) true else false).map(x=>x._2._1)
     noChangeRdd.saveAsTextFile(dataProcessConfig.tempDir)
+
+    //val partFuction : (Iterator[String])=>Iterator[(String,String)] ={
+      //x=> Iterator(("1","2"))
+    //}
+    //sparkContext.textFile(this.dataProcessConfig.datFileOutputPath).mapPartitions(partFuction)
 
     //删除datFileOutputPath
     //move dataProcessConfig.tempDir 到datFileOutputPath
