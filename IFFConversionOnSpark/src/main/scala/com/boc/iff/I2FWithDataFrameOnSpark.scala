@@ -44,25 +44,30 @@ class I2FWithDataFrameOnSparkJob
     val notChangeDF = sqlContext.sql(sql.toString)
     val newFullRDD = notChangeDF.unionAll(iTableDF).rdd.map(row=>row.toSeq.reduceLeft(_+this.fieldDelimiter+_))
     //newFullDF.write.insertInto(dataProcessConfig.dbName+"."+dataProcessConfig.fTableName)
+
     val tempDir = getTempDir(dataProcessConfig.fTableName)
     implicit val configuration = sparkContext.hadoopConfiguration
+    //删除临时目录
     DFSUtils.deleteDir(tempDir)
+    //保存到临时目录
     newFullRDD.saveAsTextFile(tempDir)
+
+    //删除目标表数据
+    DFSUtils.deleteDir(dataProcessConfig.fTableDatFilePath)
+    DFSUtils.createDir(dataProcessConfig.fTableDatFilePath)
+
+    //将没有改变的数据转移到目标表目录
     val fileSystem = FileSystem.get(configuration)
     val fileStatusArray = fileSystem.listStatus(new Path(tempDir)).filter(_.getLen > 0)
-    DFSUtils.deleteDir(dataProcessConfig.fTableDatFilePath)
-    val datFileOutputPath = new Path(dataProcessConfig.fTableDatFilePath)
-    if (!fileSystem.exists(datFileOutputPath)){
-      logger.info(MESSAGE_ID_CNV1001, "Create Dir: " + datFileOutputPath.toString)
-      fileSystem.mkdirs(datFileOutputPath)
-    }
-    for (fileStatusIndex <- fileStatusArray.indices.view) {
-      val fileStatus = fileStatusArray(fileStatusIndex)
-      val fileName = "%s/%05d".format(dataProcessConfig.fTableDatFilePath, fileStatusIndex)
+    var fileIndex = 0
+    for (fileStatus <- fileStatusArray) {
+      val fileName = "%s/%05d".format(dataProcessConfig.fTableDatFilePath,fileIndex)
       val srcPath = fileStatus.getPath
       val dstPath = new Path(fileName)
       DFSUtils.moveFile(srcPath, dstPath)
+      fileIndex += 1
     }
+
 
   }
 }

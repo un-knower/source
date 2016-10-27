@@ -211,7 +211,7 @@ class UnfixedConversionOnSparkJob
             var success = true
             var errorMessage = "";
             try {
-              for (iffField <- iffMetadata.body.fields if (StringUtils.isEmpty(iffField.getExpression))) {
+              for (iffField <- iffMetadata.body.fields if ("Y".equals(iffField.virtual))) {
                 val fieldType = iffField.typeInfo
                 if(StringUtils.isNotBlank(lineSeq(dataInd))) {
                   fieldType match {

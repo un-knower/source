@@ -35,6 +35,7 @@ object DFSUtils {
     }
   }
 
+
   def deleteDir(path: String)(implicit configuration: Configuration): Unit = {
     val fileSystem = FileSystem.get(configuration)
     val fsPath = new Path(path)

@@ -40,7 +40,7 @@ class IFFSection extends Serializable {
   }
 
   def getSourceLength: Int = {
-    fields.filter(x=>StringUtils.isEmpty(x.expression)).length
+    fields.filter(x=>"Y".equals(x.virtual)).length
   }
 
 }

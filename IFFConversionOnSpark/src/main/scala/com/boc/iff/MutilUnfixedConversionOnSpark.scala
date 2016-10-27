@@ -208,7 +208,7 @@ class MutilUnfixedConversionOnSparkJob
             var success = true
             var errorMessage = "";
             try {
-              for (iffField <- iffMetadata.body.fields if (StringUtils.isEmpty(iffField.getExpression))) {
+              for (iffField <- iffMetadata.body.fields if ("Y".equals(iffField.virtual))) {
                 val fieldType = iffField.typeInfo
                 fieldType match {
                   case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)

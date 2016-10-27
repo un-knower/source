@@ -186,7 +186,7 @@ class MutilFixedConversionOnSparkJob
           var success = true
           var errorMessage = "";
           try {
-            for (iffField <- iffMetadata.body.fields if (StringUtils.isEmpty(iffField.getExpression))) {
+            for (iffField <- iffMetadata.body.fields if ("Y".equals(iffField.virtual))) {
               val fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
               val fieldType = iffField.typeInfo
               fieldType match {
