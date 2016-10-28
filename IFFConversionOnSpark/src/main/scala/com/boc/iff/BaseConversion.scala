@@ -159,7 +159,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     val convertByPartitions = createConvertOnDFSByPartitionsFunction
     val broadcast: org.apache.spark.broadcast.Broadcast[mutable.ListBuffer[Long]]
     = sparkContext.broadcast(mutable.ListBuffer())
-
+    sparkContext.applicationId
     val tempDir = getTempDir
     val errorDir = getErrorFileDir
     DFSUtils.deleteDir(tempDir)

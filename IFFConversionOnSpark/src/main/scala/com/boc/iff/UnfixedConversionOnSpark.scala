@@ -49,8 +49,8 @@ class UnfixedConversionOnSparkJob
       while (canRead) {
         val lineStr = br.readLine()
         if(lineStr!=null){
-          if(validateRecNumFlag&&lineStr.startsWith(iffConversionConfig.fileEOFPrefix)){
-            if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
+          if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix)){
+            if(validateRecNumFlag&&lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
               var recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
               if(StringUtils.isNotEmpty(recNum))recNum=recNum.trim
               if(recNum.toInt!=countLineNumber){
@@ -211,7 +211,7 @@ class UnfixedConversionOnSparkJob
             var success = true
             var errorMessage = "";
             try {
-              for (iffField <- iffMetadata.body.fields if ("Y".equals(iffField.virtual))) {
+              for (iffField <- iffMetadata.body.fields if (!"Y".equals(iffField.virtual))) {
                 val fieldType = iffField.typeInfo
                 if(StringUtils.isNotBlank(lineSeq(dataInd))) {
                   fieldType match {

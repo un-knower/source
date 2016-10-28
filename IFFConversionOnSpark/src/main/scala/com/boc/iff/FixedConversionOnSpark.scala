@@ -190,7 +190,7 @@ class FixedConversionOnSparkJob
           var success = true
           var errorMessage = "";
           try {
-            for (iffField <- iffMetadata.body.fields if ("Y".equals(iffField.virtual))) {
+            for (iffField <- iffMetadata.body.fields if (!"Y".equals(iffField.virtual))) {
               val fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
               val fieldType = iffField.typeInfo
               if(StringUtils.isNotBlank(fieldVal)) {
