@@ -1,13 +1,10 @@
-package com.boc.iff
+package com.boc.iff.itf
 
+import com.boc.iff.DFSUtils
 import com.boc.iff.IFFConversion._
-import com.boc.iff.model._
+import com.boc.iff.exception.PrimaryKeyMissException
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
-import java.io.{BufferedInputStream, File, FileInputStream}
-import java.sql.SQLClientInfoException
-
-import com.boc.iff.exception.PrimaryKeyMissException
 import org.apache.spark.sql.hive.HiveContext
 
 /**

@@ -1,10 +1,11 @@
-package com.boc.iff
+package com.boc.iff.itf
 
+import java.io.File
+import com.boc.iff._
 import com.boc.iff.IFFConversion._
 import com.boc.iff.model._
-import org.apache.commons.lang3.StringUtils
+import com.boc.iff.{DataProcessConfig, SparkJobConfig}
 import org.apache.hadoop.fs.{FileSystem, Path}
-import java.io.{BufferedInputStream, File, FileInputStream}
 
 class DataProcessOnSparkConfig extends DataProcessConfig with SparkJobConfig {
 

@@ -1,45 +1,40 @@
-package com.boc.iff
+package com.boc.iff.load
 
 import java.io.FileInputStream
 import java.util.Properties
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.zip.GZIPInputStream
 
-import com.boc.iff.DFSUtils.FileMode
 import com.boc.iff.IFFConversion._
 import com.boc.iff.exception.{MaxErrorNumberException, RecordNumberErrorException}
 import com.boc.iff.model._
+import com.boc.iff.{CommonFieldConvertorContext, CommonFieldValidatorContext, ECCLogger, IFFUtils}
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.concurrent._
-import ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
 
 /**
   * @author www.birdiexx.com
   */
-class FixedConversionOnSparkJob
-  extends BaseConversionOnSparkJob[BaseConversionOnSparkConfig] {
+class MutilFixedConversionOnSparkJob
+  extends MutilConversionOnSparkJob[MutilConversionOnSparkConfig] {
 
-  protected def createBlockPositionQueue: java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
+  protected def createBlockPositionQueue(filePath:String): java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, iffFileInfo.recordLength + 1)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     logger.info("recordLength","recordLength"+iffFileInfo.recordLength)
     val recordBuffer = new Array[Byte](iffFileInfo.recordLength + iffConversionConfig.lengthOfLineEnd) //把换行符号也读入到缓冲byte
     var totalBlockReadBytesCount: Long = 0
-    val iffFileInputStream = openIFFFileBufferedInputStream(
-      iffConversionConfig.iffFileInputPath, iffFileInfo.isGzip, iffConversionConfig.readBufferSize)
+    val iffFileInputStream = openIFFFileInputStream(filePath)
     var blockIndex: Int = 0
     var endOfFile = false
     var countLineNumber: Int = 0
     val endOfFileStr = new StringBuffer()
     var recordEnd = false
-    val validateRecNumFlag = if("Y".equals(iffConversionConfig.validateRecNumFlag))true else false
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
       var canRead = true
@@ -70,12 +65,12 @@ class FixedConversionOnSparkJob
       totalBlockReadBytesCount += currentBlockReadBytesCount
       blockIndex += 1
     }
-    if (validateRecNumFlag&&endOfFileStr.length() > 0) {
+    if (endOfFileStr.length() > 0) {
+      println(endOfFileStr.toString)
       val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(endOfFileStr.toString, iffConversionConfig.fileEOFPrefix)
       for (s <- lineSeq) {
         if (s.startsWith("RecNum")) {
-          var recNum = s.substring(("RecNum=").length, s.length - (iffConversionConfig.lengthOfLineEnd))
-          if(StringUtils.isNotEmpty(recNum))recNum=recNum.trim
+          val recNum = s.substring(("RecNum=").length, s.length - (iffConversionConfig.lengthOfLineEnd))
           if (recNum.toInt != countLineNumber) {
             logger.error("file " + iffConversionConfig.filename + " number is not right " + recNum.toInt + countLineNumber, "file number is not right")
             throw RecordNumberErrorException("file " + iffConversionConfig.filename + " record number is not right,Expect record number:"+ countLineNumber+" Actually record number:" + recNum.toInt )
@@ -93,13 +88,12 @@ class FixedConversionOnSparkJob
     blockPositionQueue
   }
 
-
   /**
     * 创建一个方法 对一个分片（分区）的数据进行转换操作
-    *@author www.birdiexx.com
+    *
     * @return
     */
-  protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = {
+  protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = {
     val iffConversionConfig = this.iffConversionConfig
     val lengthOfLineEnd = iffConversionConfig.lengthOfLineEnd
     val iffMetadata = this.iffMetadata
@@ -117,7 +111,7 @@ class FixedConversionOnSparkJob
     val iffFileInputPathText = iffConversionConfig.iffFileInputPath
     val readBufferSize = iffConversionConfig.readBufferSize
 
-    val convertByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = { blockPositionIterator =>
+    val convertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = { blockPositionIterator =>
       val logger = new ECCLogger()
       logger.configure(prop)
       val recordList = ListBuffer[String]()
@@ -156,14 +150,13 @@ class FixedConversionOnSparkJob
         configuration.set(key, value)
       }
       val fileSystem = FileSystem.get(configuration)
-      val iffFileInputPath = new Path(iffFileInputPathText)
-      val iffFileInputStream = fileSystem.open(iffFileInputPath)
-      val iffFileSourceInputStream =
-        if (iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
-        else iffFileInputStream
-
       while (blockPositionIterator.hasNext) {
-        val (blockIndex, blockPosition, blockSize) = blockPositionIterator.next()
+        val (blockIndex, blockPosition, blockSize,filePath) = blockPositionIterator.next()
+        val iffFileInputPath = new Path(filePath)
+        val iffFileInputStream = fileSystem.open(iffFileInputPath)
+        val iffFileSourceInputStream =
+          if (iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
+          else iffFileInputStream
         var currentBlockReadBytesCount: Long = 0
         var restToSkip = blockPosition
         while (restToSkip > 0) {
@@ -193,14 +186,10 @@ class FixedConversionOnSparkJob
             for (iffField <- iffMetadata.body.fields if (!"Y".equals(iffField.virtual))) {
               val fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
               val fieldType = iffField.typeInfo
-              if(StringUtils.isNotBlank(fieldVal)) {
-                fieldType match {
-                  case fieldType: CInteger => dataMap += (iffField.name -> fieldVal.toInt)
-                  case fieldType: CDecimal => dataMap += (iffField.name -> fieldVal.toDouble)
-                  case _ => dataMap += (iffField.name -> fieldVal)
-                }
-              }else{
-                dataMap += (iffField.name -> "")
+              fieldType match {
+                case fieldType: CInteger => dataMap += (iffField.name -> fieldVal.toInt)
+                case fieldType: CDecimal => dataMap += (iffField.name -> fieldVal.toDouble)
+                case _ => dataMap += (iffField.name -> fieldVal)
               }
             }
           } catch {
@@ -234,13 +223,13 @@ class FixedConversionOnSparkJob
           recordList += sb.toString
           currentBlockReadBytesCount += recordLength
         }
-      }
-      try{
-        iffFileSourceInputStream.close()
-      }catch {
-        case e:Exception=>
-          e.printStackTrace()
-          logger.error("iffFileInputStream close error","iffFileInputStream close error")
+        try{
+          iffFileSourceInputStream.close()
+        }catch {
+          case e:Exception=>
+            e.printStackTrace()
+            logger.error("iffFileInputStream close error","iffFileInputStream close error")
+        }
       }
       recordList.iterator
     }
@@ -249,15 +238,13 @@ class FixedConversionOnSparkJob
 
 }
 
-
-
 /**
   * Spark 程序入口
-  * @author www.birdiexx.com
+  *  @author www.birdiexx.com
   */
-object FixedConversionOnSpark extends App {
-  val config = new BaseConversionOnSparkConfig()
-  val job = new FixedConversionOnSparkJob()
+object MutilFixedConversionOnSpark extends App {
+  val config = new MutilConversionOnSparkConfig()
+  val job = new MutilFixedConversionOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)
@@ -274,7 +261,3 @@ object FixedConversionOnSpark extends App {
       System.exit(9)
   }
 }
-
-/**
-  * @author www.birdiexx.com
-  */

@@ -1,24 +1,21 @@
-package com.boc.iff
+package com.boc.iff.load
 
-import java.io.{BufferedReader, File, FileInputStream, InputStreamReader}
+import java.io.File
 import java.util
-import java.util.Properties
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.zip.GZIPInputStream
 
 import com.boc.iff.DFSUtils.FileMode
+import com.boc.iff._
 import com.boc.iff.IFFConversion._
+import com.boc.iff.exception._
 import com.boc.iff.model._
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.hadoop.yarn.conf.YarnConfiguration
-import com.boc.iff.exception._
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.Duration
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
-import ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
 import scala.util.{Failure, Success}
 
 /**

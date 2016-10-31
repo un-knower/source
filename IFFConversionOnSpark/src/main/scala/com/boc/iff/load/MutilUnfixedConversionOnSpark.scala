@@ -1,37 +1,34 @@
-package com.boc.iff
+package com.boc.iff.load
 
 import java.io.{BufferedReader, FileInputStream, InputStreamReader}
 import java.util.Properties
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.zip.GZIPInputStream
 
-import com.boc.iff.DFSUtils.FileMode
 import com.boc.iff.IFFConversion._
+import com.boc.iff.exception._
 import com.boc.iff.model._
+import com.boc.iff.{CommonFieldConvertorContext, CommonFieldValidatorContext, ECCLogger, IFFUtils}
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
-import com.boc.iff.exception._
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.Duration
-import scala.concurrent._
-import ExecutionContext.Implicits.global
 
 /**
   * @author www.birdiexx.com
   */
-class UnfixedConversionOnSparkJob
-  extends BaseConversionOnSparkJob[BaseConversionOnSparkConfig] {
+class MutilUnfixedConversionOnSparkJob
+  extends MutilConversionOnSparkJob[MutilConversionOnSparkConfig] {
 
-  protected def createBlockPositionQueue: java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
+  protected def createBlockPositionQueue(filePath:String): java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, 0)
     logger.info("blockSize","blockSize:"+blockSize)
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     var totalBlockReadBytesCount: Long = 0
-    val iffFileInputStream = openIFFFileInputStream(iffConversionConfig.iffFileInputPath+iffConversionConfig.filename)
+    val iffFileInputStream = openIFFFileInputStream(filePath)
     var blockIndex: Int = 0
     var endOfFile = false
     val br = new BufferedReader(new InputStreamReader(iffFileInputStream.asInstanceOf[java.io.InputStream],IFFUtils.getCharset(iffMetadata.sourceCharset)))
@@ -41,7 +38,6 @@ class UnfixedConversionOnSparkJob
     val needCheckBlank: Boolean = if(iffConversionConfig.fileMaxBlank==0) false else true
 
     logger.info("chartSet","chartSet"+iffMetadata.sourceCharset)
-    val validateRecNumFlag = if("Y".equals(iffConversionConfig.validateRecNumFlag))true else false
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
       var canRead = true
@@ -50,9 +46,8 @@ class UnfixedConversionOnSparkJob
         val lineStr = br.readLine()
         if(lineStr!=null){
           if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix)){
-            if(validateRecNumFlag&&lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
-              var recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
-              if(StringUtils.isNotEmpty(recNum))recNum=recNum.trim
+            if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
+              val recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
               if(recNum.toInt!=countLineNumber){
                 logger.error("file "+iffConversionConfig.filename+ " number is not right "+recNum.toInt+countLineNumber,"file number is not right")
                 throw RecordNumberErrorException("file " + iffConversionConfig.filename + " record number is not right,Expect record number:"+ countLineNumber+" Actually record number:" + recNum.toInt )
@@ -121,13 +116,13 @@ class UnfixedConversionOnSparkJob
     *
     * @return
     */
-  protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = {
+  protected def createConvertOnDFSByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = {
     val iffConversionConfig = this.iffConversionConfig
+    val lengthOfLineEnd = iffConversionConfig.lengthOfLineEnd
     val iffMetadata = this.iffMetadata
     val iffFileInfo = this.iffFileInfo
     val fieldDelimiter = this.fieldDelimiter
     val lineSplit = iffMetadata.srcSeparator
-    val lengthOfLineEnd = iffConversionConfig.lengthOfLineEnd
     implicit val configuration = sparkContext.hadoopConfiguration
     val hadoopConfigurationMap = mutable.HashMap[String,String]()
     val iterator = configuration.iterator()
@@ -137,11 +132,10 @@ class UnfixedConversionOnSparkJob
       val entry = iterator.next()
       hadoopConfigurationMap += entry.getKey -> entry.getValue
     }
-    val iffFileInputPathText = iffConversionConfig.iffFileInputPath
     val readBufferSize = iffConversionConfig.readBufferSize
 
 
-    val convertByPartitionsFunction: (Iterator[(Int, Long, Int)] => Iterator[String]) = { blockPositionIterator =>
+    val convertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = { blockPositionIterator =>
       val logger = new ECCLogger()
       logger.configure(prop)
       val recordList = ListBuffer[String]()
@@ -179,15 +173,15 @@ class UnfixedConversionOnSparkJob
         configuration.set(key, value)
       }
       val fileSystem = FileSystem.get(configuration)
-      val iffFileInputPath = new Path(iffFileInputPathText)
-      val iffFileInputStream = fileSystem.open(iffFileInputPath)
-      val iffFileSourceInputStream =
-        if(iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
-        else iffFileInputStream
-      val inputStream = iffFileSourceInputStream.asInstanceOf[java.io.InputStream]
       logger.info("blockPositionIterator:","blockPositionIterator"+charset)
       while(blockPositionIterator.hasNext){
-        val (blockIndex, blockPosition, blockSize) = blockPositionIterator.next()
+        val (blockIndex, blockPosition, blockSize,filePath) = blockPositionIterator.next()
+        val iffFileInputPath = new Path(filePath)
+        val iffFileInputStream = fileSystem.open(iffFileInputPath)
+        val iffFileSourceInputStream =
+          if(iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, readBufferSize)
+          else iffFileInputStream
+        val inputStream = iffFileSourceInputStream.asInstanceOf[java.io.InputStream]
         var currentBlockReadBytesCount: Long = 0
         var restToSkip = blockPosition
         while (restToSkip > 0) {
@@ -213,16 +207,11 @@ class UnfixedConversionOnSparkJob
             try {
               for (iffField <- iffMetadata.body.fields if (!"Y".equals(iffField.virtual))) {
                 val fieldType = iffField.typeInfo
-                if(StringUtils.isNotBlank(lineSeq(dataInd))) {
-                  fieldType match {
-                    case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)
-                    case fieldType: CDecimal => dataMap += (iffField.name -> lineSeq(dataInd).toDouble)
-                    case _ => dataMap += (iffField.name -> lineSeq(dataInd))
-                  }
-                }else{
-                  dataMap += (iffField.name -> "")
+                fieldType match {
+                  case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)
+                  case fieldType: CDecimal => dataMap += (iffField.name -> lineSeq(dataInd).toDouble)
+                  case _ => dataMap += (iffField.name -> lineSeq(dataInd))
                 }
-
                 dataInd += 1
               }
             } catch {
@@ -234,8 +223,8 @@ class UnfixedConversionOnSparkJob
                 errorMessage = " unknown exception " + e.getMessage
             }
             if (success) {
-              import com.boc.iff.CommonFieldValidatorContext._
               implicit val validContext = new CommonFieldValidatorContext
+              import com.boc.iff.CommonFieldValidatorContext._
               for (iffField <- iffMetadata.body.fields if success && !iffField.isFilter) {
                 try {
                   sb ++= convertField(iffField, dataMap) //调用上面定义的闭包方法转换一个字段的数据
@@ -264,15 +253,14 @@ class UnfixedConversionOnSparkJob
             e.printStackTrace()
             logger.error("bufferedReader close error","bufferedReader close error")
         }
+        try{
+          iffFileSourceInputStream.close()
+        }catch {
+          case e:Exception=>
+            e.printStackTrace()
+            logger.error("iffFileInputStream close error","iffFileInputStream close error")
+        }
       }
-      try{
-        iffFileSourceInputStream.close()
-      }catch {
-        case e:Exception=>
-          e.printStackTrace()
-          logger.error("iffFileInputStream close error","iffFileInputStream close error")
-      }
-
       recordList.iterator
     }
     convertByPartitionsFunction
@@ -283,9 +271,9 @@ class UnfixedConversionOnSparkJob
   *  Spark 程序入口
   *  @author www.birdiexx.com
   */
-object UnfixedConversionOnSpark extends App{
-  val config = new BaseConversionOnSparkConfig()
-  val job = new UnfixedConversionOnSparkJob()
+object MutilUnfixedConversionOnSpark extends App{
+  val config = new MutilConversionOnSparkConfig()
+  val job = new MutilUnfixedConversionOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)
