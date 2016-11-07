@@ -99,6 +99,8 @@ class MutilFixedConversionOnSparkJob
     val iffMetadata = this.iffMetadata
     val iffFileInfo = this.iffFileInfo
     val fieldDelimiter = this.fieldDelimiter
+    val specialCharConvertor = this.specialCharConvertor
+    val needConvertSpecialChar:Boolean = if("Y".equals(this.iffConversionConfig.specialCharConvertFlag))true else false
     implicit val configuration = sparkContext.hadoopConfiguration
     val hadoopConfigurationMap = mutable.HashMap[String, String]()
     val iterator = configuration.iterator()
@@ -184,12 +186,19 @@ class MutilFixedConversionOnSparkJob
           var errorMessage = "";
           try {
             for (iffField <- iffMetadata.body.fields if (!"Y".equals(iffField.virtual))) {
-              val fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
+              var fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
               val fieldType = iffField.typeInfo
-              fieldType match {
-                case fieldType: CInteger => dataMap += (iffField.name -> fieldVal.toInt)
-                case fieldType: CDecimal => dataMap += (iffField.name -> fieldVal.toDouble)
-                case _ => dataMap += (iffField.name -> fieldVal)
+              if(StringUtils.isNotBlank(fieldVal)) {
+                if(needConvertSpecialChar){
+                  fieldVal = specialCharConvertor.convert(fieldVal)
+                }
+                fieldType match {
+                  case fieldType: CInteger => dataMap += (iffField.name -> fieldVal.toInt)
+                  case fieldType: CDecimal => dataMap += (iffField.name -> fieldVal.toDouble)
+                  case _ => dataMap += (iffField.name -> fieldVal)
+                }
+              }else{
+                dataMap += (iffField.name -> "")
               }
             }
           } catch {

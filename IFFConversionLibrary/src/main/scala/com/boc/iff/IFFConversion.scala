@@ -43,6 +43,8 @@ trait IFFConversion[T<:IFFConversionConfig] {
   protected var iffMetadata: IFFMetadata = null
   protected var iffFileInfo: IFFFileInfo = null
 
+  protected var specialCharConvertor:SpecialCharConvertor = null
+
   val logger = new ECCLogger()
 
   protected val dbManagers = ListBuffer[DBManager]()
@@ -402,6 +404,9 @@ trait IFFConversion[T<:IFFConversionConfig] {
     targetDataSource = DBUtils.createDataSource(dataSourceConfig)
     loadIFFFileInfo(iffConversionConfig.iffFileInputPath, iffConversionConfig.readBufferSize)
     loadIFFFieldTypeInfo()
+    if("Y".equals(iffConversionConfig.specialCharConvertFlag)){
+      this.specialCharConvertor = new SpecialCharConvertor(iffConversionConfig.specialCharFilePath)
+    }
     true
   }
 

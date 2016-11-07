@@ -32,7 +32,7 @@ class HiveDBManager(prefix: String, config: Properties)
       val fTable =getDBTable(iffConversionConfig.dbName, iffConversionConfig.fTableName)
       iffConversionConfig.fTableDatFilePath = fTable.location
     }
-    iffConversionConfig.autoDeleteTargetDir = autoDeleteTargetDir
+    //iffConversionConfig.autoDeleteTargetDir = autoDeleteTargetDir
   }
 
   def patchMetadataFields(iffMetadata: IFFMetadata,

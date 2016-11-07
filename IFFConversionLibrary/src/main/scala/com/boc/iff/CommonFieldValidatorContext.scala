@@ -1,6 +1,8 @@
 package com.boc.iff
 
+import java.io.FileInputStream
 import java.text.DecimalFormat
+import java.util.Properties
 
 import com.boc.iff.model._
 import org.apache.commons.lang.StringUtils
@@ -12,6 +14,10 @@ import scala.collection.mutable.HashMap
   * @author www.birdiexx.com
   */
 class CommonFieldValidatorContext() extends Serializable {
+  /**val logger = new ECCLogger()
+  val prop = new Properties()
+  prop.load(new FileInputStream("/app/birdie/bochk/IFFConversion/config/config.properties"))
+  logger.configure(prop)*/
 
   private def validate[T <: IFFFieldType](fieldType: T, fieldValue: String)
                                         (implicit validator: CommonFieldValidator[T]) = {
@@ -21,7 +27,6 @@ class CommonFieldValidatorContext() extends Serializable {
   def validateField(iffField: IFFField, fieldValues: HashMap[String,Any]) = {
     val fieldType = iffField.typeInfo
     var fieldValue = fieldValues.getOrElse(iffField.name, "").toString
-
     val normalCheck = fieldType match {
       case fieldType@IFFDate() => validate(fieldType, fieldValue)
       case fieldType@IFFTime() => validate(fieldType, fieldValue)
@@ -48,8 +53,8 @@ class CommonFieldValidatorContext() extends Serializable {
         }
         validate(fieldType, fieldValue)
       case fieldType@CInteger() =>
-        if(StringUtils.isNotEmpty(fieldValue)){
-          val pattern = "#"*(fieldType.maxlength)
+        if(StringUtils.isNotEmpty(fieldValue)&&fieldType.maxlength>0){
+          var pattern = "#"*(fieldType.maxlength)
           val format = new DecimalFormat(pattern)
           fieldValue = format.format(fieldValue.toInt)
         }
@@ -59,6 +64,8 @@ class CommonFieldValidatorContext() extends Serializable {
       case fieldType@CTimestamp() => validate(fieldType, fieldValue)
       case _ =>validate(CString(), fieldValue)
     }
+
+    logger.info("normalCheck:","normalCheck***************: "+normalCheck)
     val expressionCheck = FieldValidator.validatExpression(iffField.validators,fieldValues)
     expressionCheck && normalCheck
   }

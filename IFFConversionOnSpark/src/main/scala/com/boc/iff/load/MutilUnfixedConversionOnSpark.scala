@@ -123,6 +123,8 @@ class MutilUnfixedConversionOnSparkJob
     val iffFileInfo = this.iffFileInfo
     val fieldDelimiter = this.fieldDelimiter
     val lineSplit = iffMetadata.srcSeparator
+    val specialCharConvertor = this.specialCharConvertor
+    val needConvertSpecialChar:Boolean = if("Y".equals(this.iffConversionConfig.specialCharConvertFlag))true else false
     implicit val configuration = sparkContext.hadoopConfiguration
     val hadoopConfigurationMap = mutable.HashMap[String,String]()
     val iterator = configuration.iterator()
@@ -190,13 +192,16 @@ class MutilUnfixedConversionOnSparkJob
         }
         val br = new BufferedReader(new InputStreamReader(inputStream,charset))
         while ( currentBlockReadBytesCount < blockSize ) {
-          val currentLine = br.readLine()
+          var currentLine = br.readLine()
 
           if (StringUtils.isNotEmpty(currentLine.trim)) {
 
             // logger.info("currentLine:","currentLine"+currentLine)
             val recordLength = currentLine.getBytes(iffMetadata.sourceCharset).length
             currentBlockReadBytesCount += recordLength + lengthOfLineEnd
+            if(needConvertSpecialChar){
+              currentLine = specialCharConvertor.convert(currentLine)
+            }
             val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(currentLine, lineSplit)
 
             var dataInd = 0
@@ -207,10 +212,14 @@ class MutilUnfixedConversionOnSparkJob
             try {
               for (iffField <- iffMetadata.body.fields if (!"Y".equals(iffField.virtual))) {
                 val fieldType = iffField.typeInfo
-                fieldType match {
-                  case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)
-                  case fieldType: CDecimal => dataMap += (iffField.name -> lineSeq(dataInd).toDouble)
-                  case _ => dataMap += (iffField.name -> lineSeq(dataInd))
+                if(StringUtils.isNotBlank(lineSeq(dataInd))) {
+                  fieldType match {
+                    case fieldType: CInteger => dataMap += (iffField.name -> lineSeq(dataInd).toInt)
+                    case fieldType: CDecimal => dataMap += (iffField.name -> lineSeq(dataInd).toDouble)
+                    case _ => dataMap += (iffField.name -> lineSeq(dataInd))
+                  }
+                }else{
+                  dataMap += (iffField.name -> "")
                 }
                 dataInd += 1
               }

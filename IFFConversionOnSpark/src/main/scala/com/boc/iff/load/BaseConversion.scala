@@ -1,5 +1,7 @@
 package com.boc.iff.load
 
+import java.text.SimpleDateFormat
+import java.util.Date
 import com.boc.iff.DFSUtils.FileMode
 import com.boc.iff._
 import com.boc.iff.IFFConversion._
@@ -186,13 +188,14 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       errorRcdRDD.saveAsTextFile(errorOutputDir)
       convertedRecords.unpersist()
       //logger.info("tempOutputDir",tempOutputDir+"error/"+errorDir+convertedRecords.filter(_.endsWith("ERROR validateField")).count())
-
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
+      //val dateStr = new SimpleDateFormat("yyyyMMdd").format(new Date())
+      val dateStr = sparkContext.applicationId
       for (fileStatusIndex <- fileStatusArray.indices.view) {
         val fileStatus = fileStatusArray(fileStatusIndex)
         val fileName =
-          if (fileStatusArray.length == 1) "%s/%05d".format(iffConversionConfig.datFileOutputPath, blockIndex)
-          else "%s/%05d-%05d".format(iffConversionConfig.datFileOutputPath, blockIndex, fileStatusIndex)
+          if (fileStatusArray.length == 1) "%s/%s-%05d".format(iffConversionConfig.datFileOutputPath,dateStr, blockIndex)
+          else "%s/%s-%05d-%05d".format(iffConversionConfig.datFileOutputPath,dateStr, blockIndex, fileStatusIndex)
         val srcPath = fileStatus.getPath
         val dstPath = new Path(fileName)
         DFSUtils.moveFile(srcPath, dstPath)
@@ -251,18 +254,23 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       }
     }
   }
-  /**
-    * 转换 IFF 数据文件
-    * @author www.birdiexx.com
-    */
-  override protected def convertFile(): Unit = {
-    if(iffConversionConfig.autoDeleteTargetDir) deleteTargetDir()
+
+  protected def cleanDataFile():Unit={
+    logger.info("MESSAGE_ID_CNV1001","****************clean target dir ********************")
+    deleteTargetDir()
     val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
     val datFileOutputPath = new Path(iffConversionConfig.datFileOutputPath)
     if (!fileSystem.isDirectory(datFileOutputPath)){
       logger.info(MESSAGE_ID_CNV1001, "Create Dir: " + datFileOutputPath.toString)
       fileSystem.mkdirs(datFileOutputPath)
     }
+  }
+  /**
+    * 转换 IFF 数据文件
+    * @author www.birdiexx.com
+    */
+  override protected def convertFile(): Unit = {
+    if(iffConversionConfig.autoDeleteTargetDir)cleanDataFile()
     iffConversionConfig.iffFileMode match {
       case FileMode.DFS => convertFileOnDFS()
     }

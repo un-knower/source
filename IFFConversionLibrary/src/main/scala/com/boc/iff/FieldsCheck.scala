@@ -13,13 +13,13 @@ import scala.collection.{JavaConversions, mutable}
   * Created by birdie on 8/25/16.
   */
 trait FieldsCheck {
-/*
 
+/**
   val logger = new ECCLogger()
   val prop = new Properties()
   prop.load(new FileInputStream("/app/birdie/bochk/IFFConversion/config/config.properties"))
-  logger.configure(prop)
-*/
+  logger.configure(prop)*/
+
 
 
 
@@ -216,5 +216,10 @@ object FieldValidator extends FieldsCheck {
     }
 
   }
+
+  def main(args: Array[String]) {
+    println(checkInt("954435"))
+  }
+
 
 }

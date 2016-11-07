@@ -37,6 +37,8 @@ class IFFConversionConfig extends AppConfig {
   var fileMaxBlank: Long = 0                                                 //文件最大空行数
   var lengthOfLineEnd: Int = 1                                               //文件系统类型
   var validateRecNumFlag: String = "Y"                                              //文件记录数校验开关，Y为开启
+  var specialCharFilePath:String = ""                                          //特殊字符文件目录
+  var specialCharConvertFlag:String = "N"                                     //特殊字符转换开关
   private val dateFormat = new SimpleDateFormat(ACCOUNT_DATE_PATTERN)
 
   /**
@@ -91,9 +93,9 @@ class IFFConversionConfig extends AppConfig {
     optionParser.opt[String]("f-table-name")
       .text("F Table Name")
       .foreach { x=> this.fTableName = x.toLowerCase }
-    optionParser.opt[Unit]("auto-delete-target-dir")
+    optionParser.opt[String]("auto-delete-target-dir")
       .text("Auto Delete Target Dir Before Job")
-      .foreach {x=> this.autoDeleteTargetDir = true}
+      .foreach {x=> this.autoDeleteTargetDir=if("N".equals(x)) false else true}
     optionParser.opt[String]("temp-dir")
       .text("Temp Dir")
       .foreach {x=> this.tempDir = x}
@@ -115,6 +117,12 @@ class IFFConversionConfig extends AppConfig {
     optionParser.opt[String]("file-validate-recNum-Flag")
       .text("file validate recNum Flag")
       .foreach(this.validateRecNumFlag = _)
+    optionParser.opt[String]("specialChar-file-path")
+      .text("specialCharFilePath")
+      .foreach(this.specialCharFilePath = _)
+    optionParser.opt[String]("specialChar-convert-flag")
+      .text("specialCharConvertFlag")
+      .foreach(this.specialCharConvertFlag = _)
 
   }
 
