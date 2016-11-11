@@ -39,6 +39,7 @@ class IFFConversionConfig extends AppConfig {
   var validateRecNumFlag: String = "Y"                                              //文件记录数校验开关，Y为开启
   var specialCharFilePath:String = ""                                          //特殊字符文件目录
   var specialCharConvertFlag:String = "N"                                     //特殊字符转换开关
+  var iffNumberOfThread:Int = 0                                                //程序线程数
   private val dateFormat = new SimpleDateFormat(ACCOUNT_DATE_PATTERN)
 
   /**
@@ -123,6 +124,9 @@ class IFFConversionConfig extends AppConfig {
     optionParser.opt[String]("specialChar-convert-flag")
       .text("specialCharConvertFlag")
       .foreach(this.specialCharConvertFlag = _)
+    optionParser.opt[Int]("iff-number-of-thread")
+      .text("iffNumberOfThread")
+      .foreach(this.iffNumberOfThread = _)
 
   }
 

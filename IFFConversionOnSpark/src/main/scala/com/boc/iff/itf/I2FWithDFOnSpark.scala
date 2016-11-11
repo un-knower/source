@@ -39,18 +39,24 @@ class I2FWithDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
     structFields.add(DataTypes.createStructField("content",DataTypes.StringType,true))
     val structType = DataTypes.createStructType(structFields)
     val sqlContext = new SQLContext(sparkContext)
+    logger.info(MESSAGE_ID_CNV1001,"create DF begin "+new java.util.Date())
     val newDF = sqlContext.createDataFrame(sparkContext.textFile(this.dataProcessConfig.iffFileInputPath).map(basePk2Map),structType)
     val fullDF = sqlContext.createDataFrame(sparkContext.textFile(this.dataProcessConfig.datFileOutputPath).map(basePk2Map),structType)
-    fullDF.registerTempTable("full")
-    newDF.registerTempTable("new")
-    val sql = "select f.* from full f left join new n on f.id = n.id where n.id is null "
+    logger.info(MESSAGE_ID_CNV1001,"create DF end "+new java.util.Date())
+    fullDF.registerTempTable("fullTB")
+    newDF.registerTempTable("newTB")
+    val sql = "select f.* from fullTB f left join newTB n on f.id = n.id where n.id is null "
+    logger.info(MESSAGE_ID_CNV1001,"join begin "+new java.util.Date())
     val notChangeDF = sqlContext.sql(sql.toString)
+    logger.info(MESSAGE_ID_CNV1001,"join end "+new java.util.Date())
 
     val tempDir = getTempDir(dataProcessConfig.fTableName)
     implicit val configuration = sparkContext.hadoopConfiguration
     //删除临时目录
     DFSUtils.deleteDir(tempDir)
-    notChangeDF.unionAll(newDF).select("content").write.text(tempDir);
+    logger.info(MESSAGE_ID_CNV1001,"save begin "+new java.util.Date())
+    notChangeDF.unionAll(newDF).select("content").write.text(tempDir)
+    logger.info(MESSAGE_ID_CNV1001,"save end "+new java.util.Date())
 
     //删除目标表数据
     DFSUtils.deleteDir(this.dataProcessConfig.datFileOutputPath)
@@ -74,7 +80,7 @@ class I2FWithDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
  */
 object I2FWithDFOnSpark extends App {
   val config = new DataProcessOnSparkConfig()
-  val job = new I2FOnSparkJob()
+  val job = new I2FWithDFOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)

@@ -65,7 +65,6 @@ class CommonFieldValidatorContext() extends Serializable {
       case _ =>validate(CString(), fieldValue)
     }
 
-    logger.info("normalCheck:","normalCheck***************: "+normalCheck)
     val expressionCheck = FieldValidator.validatExpression(iffField.validators,fieldValues)
     expressionCheck && normalCheck
   }

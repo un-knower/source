@@ -291,13 +291,13 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       iffConversionConfig.blockSize =
         math.min(iffConversionConfig.maxBlockSize, math.max(iffConversionConfig.minBlockSize, fitBlockSize)).toInt
     }
-    numberOfThread =
-      if(dynamicAllocation) {
-        maxExecutors
-      }else{
-        numExecutors
-      }
-    //System.setProperty("scala.concurrent.context.minThreads", String.valueOf(numberOfThread))
+    numberOfThread = if(this.iffConversionConfig.iffNumberOfThread>0){
+      this.iffConversionConfig.iffNumberOfThread
+    }else if(dynamicAllocation) {
+      maxExecutors
+    }else{
+      numExecutors
+    }
     System.setProperty("scala.concurrent.context.numThreads", String.valueOf(numberOfThread))
     System.setProperty("scala.concurrent.context.maxThreads", String.valueOf(numberOfThread))
     logger.info(MESSAGE_ID_CNV1001, "Num Threads: " + numberOfThread)
