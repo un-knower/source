@@ -12,28 +12,27 @@ class I2FOnSparkJob  extends DataProcessOnSparkJob with Serializable {
 
   override def processFile = {
     println(this.dataProcessConfig.toString);
-
     //删除dataProcessConfig.tempDir
     val fields: List[IFFField] = iffMetadata.getBody.fields
-    val tableFields = fields.filter(x=>(!"Y".equals(x.filter)))  //
-    val primaryFields :List[IFFField]= fields.filter(x=>"Y".equals(x.primaryKey)) //
+    val tableFields = fields.filter(_.filter) //
+    val primaryFields: List[IFFField] = fields.filter(_.primaryKey) //
     var pkPosition = ArrayBuffer[Int]()
-    for(v<-primaryFields){
-      pkPosition +=tableFields.indexOf(v)
+    for (v <- primaryFields) {
+      pkPosition += tableFields.indexOf(v)
     }
-    val basePk2Map= (x:String) => {
+    val basePk2Map = (x: String) => {
       val rowData = x.split(this.fieldDelimiter)
-      var key=""
-      for(v<-pkPosition){
-        key+=rowData(v).trim
+      var key = ""
+      for (v <- pkPosition) {
+        key += rowData(v).trim
       }
-      (key,x)
+      (key, x)
     }
-    val newRDD = sparkContext.textFile(this.dataProcessConfig.iffFileInputPath)
+    val newRDD = sparkContext.textFile(this.dataProcessConfig.iTableDatFilePath)
     val iRDD = newRDD.map(basePk2Map)
-    val fullRDDTable = sparkContext.textFile(this.dataProcessConfig.datFileOutputPath).map(basePk2Map)
-    val fullRDD1 =  fullRDDTable.leftOuterJoin(iRDD)
-    val noChangeRdd = fullRDD1.filter(x=>if(x._2._2.isEmpty) true else false).map(x=>x._2._1)
+    val fullRDDTable = sparkContext.textFile(this.dataProcessConfig.fTableDatFilePath).map(basePk2Map)
+    val fullRDD1 = fullRDDTable.leftOuterJoin(iRDD)
+    val noChangeRdd = fullRDD1.filter(x => if (x._2._2.isEmpty) true else false).map(x => x._2._1)
 
     val tempDir = getTempDir(dataProcessConfig.fTableName)
     implicit val configuration = sparkContext.hadoopConfiguration
@@ -42,31 +41,19 @@ class I2FOnSparkJob  extends DataProcessOnSparkJob with Serializable {
     noChangeRdd.union(newRDD).saveAsTextFile(tempDir)
 
     //删除目标表数据
-    DFSUtils.deleteDir(this.dataProcessConfig.datFileOutputPath)
-    DFSUtils.createDir(this.dataProcessConfig.datFileOutputPath)
+    DFSUtils.deleteDir(this.dataProcessConfig.fTableDatFilePath)
+    DFSUtils.createDir(this.dataProcessConfig.fTableDatFilePath)
     //将没有改变的数据转移到目标表目录
     val fileSystem = FileSystem.get(configuration)
     val fileStatusArray = fileSystem.listStatus(new Path(tempDir)).filter(_.getLen > 0)
     var fileIndex = 0
     for (fileStatus <- fileStatusArray) {
-      val fileName = "%s/%05d".format(dataProcessConfig.datFileOutputPath,fileIndex)
+      val fileName = "%s/%05d".format(dataProcessConfig.fTableDatFilePath, fileIndex)
       val srcPath = fileStatus.getPath
       val dstPath = new Path(fileName)
       DFSUtils.moveFile(srcPath, dstPath)
       fileIndex += 1
     }
-
-
-
-    //val partFuction : (Iterator[String])=>Iterator[(String,String)] ={
-      //x=> Iterator(("1","2"))
-    //}
-    //sparkContext.textFile(this.dataProcessConfig.datFileOutputPath).mapPartitions(partFuction)
-
-    //删除datFileOutputPath
-    //move dataProcessConfig.tempDir 到datFileOutputPath
-    //move dataProcessConfig.iffFileInputPath 到datFileOutputPath
-
   }
 }
 

@@ -89,7 +89,6 @@ trait FieldsCheck {
       val format: SimpleDateFormat = new SimpleDateFormat(pattern)
       try {
         value.equals(format.format(format.parse(value)))
-        true
       } catch {
         case e: Exception => false
       }

@@ -11,6 +11,9 @@ import scala.collection.mutable
  */
 class DataProcessConfig extends IFFConversionConfig{
   private val dateFormat = new SimpleDateFormat(ACCOUNT_DATE_PATTERN)
+  var iTableDatFilePath: String = ""                                        //增量表数据目录
+  var fTableName: String = ""                                               //目标数据库中全量表名
+  var fTableDatFilePath: String = ""                                        //全量表数据目录
 
   /**
    * 程序命令行参数定义及解析
@@ -19,6 +22,10 @@ class DataProcessConfig extends IFFConversionConfig{
    */
   override protected def makeOptions(optionParser: scopt.OptionParser[_]) = {
     super.makeOptions(optionParser)
+    optionParser.opt[String]("f-table-name")
+      .required()
+      .text("F Table Name")
+      .foreach { x=> this.fTableName = x.toLowerCase }
   }
   override def toString = {
     val builder = new mutable.StringBuilder(super.toString)

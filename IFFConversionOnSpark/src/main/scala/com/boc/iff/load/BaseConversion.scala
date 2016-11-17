@@ -2,6 +2,8 @@ package com.boc.iff.load
 
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.util.zip.GZIPInputStream
+
 import com.boc.iff.DFSUtils.FileMode
 import com.boc.iff._
 import com.boc.iff.IFFConversion._
@@ -134,7 +136,8 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
         val filePath = new Path(fileName)
         val iffFileInputStream = fileSystem.open(filePath, iffConversionConfig.readBufferSize)
-        iffFileInputStream
+        if(iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, iffConversionConfig.readBufferSize)
+        else iffFileInputStream
     }
   }
 
@@ -187,9 +190,8 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       logger.info("RDD FILTER SAVE END","************"+blockIndex+" "+new java.util.Date())
       errorRcdRDD.saveAsTextFile(errorOutputDir)
       convertedRecords.unpersist()
-      //logger.info("tempOutputDir",tempOutputDir+"error/"+errorDir+convertedRecords.filter(_.endsWith("ERROR validateField")).count())
+      /*
       val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
-      //val dateStr = new SimpleDateFormat("yyyyMMdd").format(new Date())
       val dateStr = sparkContext.applicationId
       for (fileStatusIndex <- fileStatusArray.indices.view) {
         val fileStatus = fileStatusArray(fileStatusIndex)
@@ -199,8 +201,9 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         val srcPath = fileStatus.getPath
         val dstPath = new Path(fileName)
         DFSUtils.moveFile(srcPath, dstPath)
-      }
+      }*/
       tempOutputDir
+
     }
 
     val futureQueue = mutable.Queue[Future[String]]()
@@ -220,6 +223,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         throw MaxErrorNumberException("errorRecException:File error recordNumber is bigger than limited, File error recordNumber:" + errorRec + ", file limited errorNumber" + iffConversionConfig.fileMaxError)
       }
     }
+    saveTargetData()
     DFSUtils.deleteDir(tempDir)
   }
 
@@ -255,6 +259,32 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     }
   }
 
+  protected def saveTargetData():Unit={
+    implicit val configuration = sparkContext.hadoopConfiguration
+    if(iffConversionConfig.autoDeleteTargetDir)cleanDataFile()
+    val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
+    val sourceFilePath = new Path(getTempDir)
+    val fileStatus = fileSystem.getFileStatus(sourceFilePath)
+    val fileStatusStrack:mutable.Stack[FileStatus] = new mutable.Stack[FileStatus]()
+    fileStatusStrack.push(fileStatus)
+    var index:Int = 0;
+    while(!fileStatusStrack.isEmpty){
+      val fst = fileStatusStrack.pop()
+      if(fst.isDirectory){
+        val fileStatusS = fileSystem.listStatus(fst.getPath)
+        for(f<-fileStatusS){
+          fileStatusStrack.push(f)
+        }
+      }else{
+        val fileName =  "%s/%s-%03d".format(iffConversionConfig.datFileOutputPath,sparkContext.applicationId, index)
+        val srcPath = fileStatus.getPath
+        val dstPath = new Path(fileName)
+        DFSUtils.moveFile(srcPath, dstPath)
+        index+=1
+      }
+    }
+  }
+
   protected def cleanDataFile():Unit={
     logger.info("MESSAGE_ID_CNV1001","****************clean target dir ********************")
     deleteTargetDir()
@@ -270,7 +300,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     * @author www.birdiexx.com
     */
   override protected def convertFile(): Unit = {
-    if(iffConversionConfig.autoDeleteTargetDir)cleanDataFile()
+    //if(iffConversionConfig.autoDeleteTargetDir)cleanDataFile()
     iffConversionConfig.iffFileMode match {
       case FileMode.DFS => convertFileOnDFS()
     }

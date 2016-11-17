@@ -49,9 +49,9 @@ case class IFFDouble() extends IFFFieldType with IFFFormatable
 case class CString() extends IFFFieldType with IFFByteDecodeWithLineEsc with IFFFormatable with IFFNeedTrim with IFFMaxlengthType
 case class CDecimal() extends IFFFieldType with IFFByteDecodeWithLineEsc with IFFDecimalType with IFFFormatable
 case class CInteger() extends IFFFieldType with IFFByteDecodeWithLineEsc with IFFMaxlengthType
-case class CDate() extends IFFFieldType with IFFByteDecodeWithOutLineEsc with IFFDateTimeType
-case class CTime() extends IFFFieldType with IFFByteDecodeWithOutLineEsc with IFFDateTimeType
-case class CTimestamp() extends IFFFieldType with IFFByteDecodeWithOutLineEsc with IFFDateTimeType
+case class CDate() extends IFFFieldType with IFFByteDecodeWithOutLineEsc with IFFDateTimeType with IFFFormatable
+case class CTime() extends IFFFieldType with IFFByteDecodeWithOutLineEsc with IFFDateTimeType with IFFFormatable
+case class CTimestamp() extends IFFFieldType with IFFByteDecodeWithOutLineEsc with IFFDateTimeType with IFFFormatable
 
 
 object IFFFieldType {

@@ -26,11 +26,12 @@ class HiveDBManager(prefix: String, config: Properties)
     val iTable =getDBTable(iffConversionConfig.dbName, iffConversionConfig.iTableName)
     if (StringUtils.isEmpty(iffConversionConfig.datFileOutputPath)) {
       iffConversionConfig.datFileOutputPath = iTable.location
-      iffConversionConfig.iTableDatFilePath = iTable.location
     }
-    if(StringUtils.isNotEmpty(iffConversionConfig.fTableName)){
-      val fTable =getDBTable(iffConversionConfig.dbName, iffConversionConfig.fTableName)
-      iffConversionConfig.fTableDatFilePath = fTable.location
+    if(iffConversionConfig.isInstanceOf[DataProcessConfig]){
+      val config = iffConversionConfig.asInstanceOf[DataProcessConfig]
+      config.iTableDatFilePath = iTable.location
+      val fTable =getDBTable(config.dbName, config.fTableName)
+      config.fTableDatFilePath = fTable.location
     }
     //iffConversionConfig.autoDeleteTargetDir = autoDeleteTargetDir
   }

@@ -55,10 +55,11 @@ class IFFField extends Serializable {
   var validators: java.util.List[String] = new util.ArrayList[String]
 
   @BeanProperty
-  var primaryKey: String = ""
+  var primaryKey: Boolean = false
 
   @BeanProperty
-  var virtual: String = ""
+  var virtual: Boolean = false
+
 
   def toXMLString: String = {
     val sb = new StringBuilder
@@ -78,8 +79,8 @@ class IFFField extends Serializable {
       sb ++= formatSpec.toXMLString
       sb ++= "</property>"
     }
-    sb ++= ("<property name=\"primaryKey\" value=\"" + primaryKey + "\"/>")
-    sb ++= ("<property name=\"virtual\" value=\"" + virtual + "\"/>")
+    sb ++= ("<property name=\"primaryKey\" value=\"" + (if (primaryKey) "true" else "false") + "\"/>")
+    sb ++= ("<property name=\"virtual\" value=\"" + (if (virtual) "true" else "false") + "\"/>")
     sb ++= "</bean>"
     sb.toString
   }

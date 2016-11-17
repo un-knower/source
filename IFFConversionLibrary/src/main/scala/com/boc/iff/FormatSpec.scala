@@ -10,8 +10,12 @@ import scala.collection.mutable
   * Created by cvinc on 2016/6/8.
   */
 object FormatSpec {
-  private val set: Set[Method] = {
-    Set[Method](classOf[Format].getMethod("getClassName", Array[Class[_]](): _*))
+
+  def main(args: Array[String]) {
+    val f = new FormatSpec
+    f.className="java.text.SimpleDateFormat"
+    f.pattern = "yyyy/MM/dd"
+    println(f.getFormatObj.format(new java.util.Date()))
   }
 }
 
@@ -23,8 +27,6 @@ class FormatSpec extends Serializable {
   var pattern: String = null
 
   private var formatObj: Format = null
-
-  def getPropertiesFunctionSet: Set[_] = FormatSpec.set
 
   def getFormatObj: Format = {
     if(formatObj != null) return formatObj

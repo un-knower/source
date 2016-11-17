@@ -38,6 +38,7 @@ class UnfixedConversionOnSparkJob
     val needCheckBlank: Boolean = if(iffConversionConfig.fileMaxBlank==0) false else true
 
     logger.info("chartSet","chartSet"+iffMetadata.sourceCharset)
+    logger.info("iffMetadata.srcSeparator","iffMetadata.srcSeparator "+iffMetadata.srcSeparator)
     val validateRecNumFlag = if("Y".equals(iffConversionConfig.validateRecNumFlag))true else false
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
@@ -213,7 +214,7 @@ class UnfixedConversionOnSparkJob
             var success = true
             var errorMessage = "";
             try {
-              for (iffField <- iffMetadata.body.fields if (!"Y".equals(iffField.virtual))) {
+              for (iffField <- iffMetadata.body.fields if (!iffField.virtual)) {
                 val fieldType = iffField.typeInfo
                 if(StringUtils.isNotBlank(lineSeq(dataInd))) {
                   fieldType match {

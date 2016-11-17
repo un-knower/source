@@ -35,6 +35,23 @@ object DFSUtils {
     }
   }
 
+  def moveFile(fileSystem: FileSystem,srcPath: Path, dstPath: Path): Unit = {
+    var renameCompleted = false
+    var tryTimes = 0
+    while (!renameCompleted && tryTimes < 5) {
+      logger.info(MESSAGE_ID_CNV1001, "Move [%s] To [%s]...".format(srcPath.toString, dstPath.toString))
+      try {
+        renameCompleted = fileSystem.rename(srcPath, dstPath)
+      } catch {
+        case e: Exception =>
+          logger.warn(MESSAGE_ID_CNV1001, e.getMessage)
+          logger.info(MESSAGE_ID_CNV1001, "Retry...")
+          Thread.sleep(1000)
+          tryTimes += 1
+      }
+    }
+  }
+
 
   def deleteDir(path: String)(implicit configuration: Configuration): Unit = {
     val fileSystem = FileSystem.get(configuration)

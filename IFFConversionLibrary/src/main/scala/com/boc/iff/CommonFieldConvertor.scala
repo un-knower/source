@@ -1,11 +1,12 @@
 package com.boc.iff
 
+import java.io.FileInputStream
 import java.math.BigInteger
 import java.nio.charset.CharsetDecoder
-import java.text.DecimalFormat
+import java.text.{DecimalFormat, SimpleDateFormat}
+import java.util.Properties
 
 import com.boc.iff.model._
-import com.ibm.as400.access.AS400ZonedDecimal
 import org.apache.commons.lang3.StringUtils
 
 /**
@@ -15,16 +16,18 @@ import org.apache.commons.lang3.StringUtils
 
 @annotation.implicitNotFound(msg = "No implicit IFFFieldConvertor defined for ${T}.")
 sealed trait CommonFieldConvertor[T<:IFFFieldType] {
+  /**val logger = new ECCLogger()
+  val prop = new Properties()
+  prop.load(new FileInputStream("/app/birdie/bochk/IFFConversion/config/config.properties"))
+  logger.configure(prop)*/
   protected def convertFromString(fieldType: T, fieldValue: String): Any = fieldValue
   def convert(fieldType: T, fieldValue: String, decoder: CharsetDecoder): String = {
     val fieldValueConvertFromString = convertFromString(fieldType,fieldValue)
-
     val formattedFieldValue = fieldType match {
       case fieldType: IFFFormatable if fieldType.formatSpec != null =>
         fieldType.formatSpec.getFormatObj.format(fieldValueConvertFromString)
       case _ => fieldValueConvertFromString.toString
     }
-
     val trimedFieldValue = fieldType match {
       case fieldType: IFFNeedTrim if StringUtils.isNotEmpty(formattedFieldValue) =>
         formattedFieldValue.trim
@@ -97,7 +100,10 @@ object CommonFieldConvertor {
 
 
   trait CDateFieldConvertor extends CommonFieldConvertor[CDate] {
-
+    override def convertFromString(fieldType: CDate, fieldValue: String): Any ={
+      val format:java.text.SimpleDateFormat = new SimpleDateFormat(fieldType.pattern)
+      format.parse(fieldValue)
+    }
   }
   implicit object CDateField extends CDateFieldConvertor
 

@@ -12,15 +12,15 @@ import org.apache.spark.sql.types.{DataTypes, StructField}
 
 import scala.collection.mutable.ArrayBuffer
 
-class I2FWithDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
+class I2FWithRddDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
 
   override def processFile = {
     println(this.dataProcessConfig.toString);
 
     //删除dataProcessConfig.tempDir
     val fields: List[IFFField] = iffMetadata.getBody.fields
-    val tableFields = fields.filter(x=>(!"Y".equals(x.filter)))  //
-    val primaryFields :List[IFFField]= fields.filter(x=>"Y".equals(x.primaryKey)) //
+    val tableFields = fields.filter(_.filter)  //
+    val primaryFields :List[IFFField]= fields.filter(_.primaryKey) //
     var pkPosition = ArrayBuffer[Int]()
     for(v<-primaryFields){
       pkPosition +=tableFields.indexOf(v)
@@ -40,8 +40,8 @@ class I2FWithDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
     val structType = DataTypes.createStructType(structFields)
     val sqlContext = new SQLContext(sparkContext)
     logger.info(MESSAGE_ID_CNV1001,"create DF begin "+new java.util.Date())
-    val newDF = sqlContext.createDataFrame(sparkContext.textFile(this.dataProcessConfig.iffFileInputPath).map(basePk2Map),structType)
-    val fullDF = sqlContext.createDataFrame(sparkContext.textFile(this.dataProcessConfig.datFileOutputPath).map(basePk2Map),structType)
+    val newDF = sqlContext.createDataFrame(sparkContext.textFile(this.dataProcessConfig.iTableDatFilePath).map(basePk2Map),structType)
+    val fullDF = sqlContext.createDataFrame(sparkContext.textFile(this.dataProcessConfig.fTableDatFilePath).map(basePk2Map),structType)
     logger.info(MESSAGE_ID_CNV1001,"create DF end "+new java.util.Date())
     fullDF.registerTempTable("fullTB")
     newDF.registerTempTable("newTB")
@@ -59,14 +59,14 @@ class I2FWithDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
     logger.info(MESSAGE_ID_CNV1001,"save end "+new java.util.Date())
 
     //删除目标表数据
-    DFSUtils.deleteDir(this.dataProcessConfig.datFileOutputPath)
-    DFSUtils.createDir(this.dataProcessConfig.datFileOutputPath)
+    DFSUtils.deleteDir(this.dataProcessConfig.fTableDatFilePath)
+    DFSUtils.createDir(this.dataProcessConfig.fTableDatFilePath)
     //将没有改变的数据转移到目标表目录
     val fileSystem = FileSystem.get(configuration)
     val fileStatusArray = fileSystem.listStatus(new Path(tempDir)).filter(_.getLen > 0)
     var fileIndex = 0
     for (fileStatus <- fileStatusArray) {
-      val fileName = "%s/%05d".format(dataProcessConfig.datFileOutputPath,fileIndex)
+      val fileName = "%s/%05d".format(dataProcessConfig.fTableDatFilePath,fileIndex)
       val srcPath = fileStatus.getPath
       val dstPath = new Path(fileName)
       DFSUtils.moveFile(srcPath, dstPath)
@@ -78,9 +78,9 @@ class I2FWithDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
 /**
  * Spark 程序入口
  */
-object I2FWithDFOnSpark extends App {
+object I2FWithRddDFOnSpark extends App {
   val config = new DataProcessOnSparkConfig()
-  val job = new I2FWithDFOnSparkJob()
+  val job = new I2FWithRddDFOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)

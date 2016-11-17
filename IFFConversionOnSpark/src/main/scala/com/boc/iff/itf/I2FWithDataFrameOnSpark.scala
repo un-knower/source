@@ -16,8 +16,7 @@ class I2FWithDataFrameOnSparkJob
 
   override def processFile = {
     println(this.dataProcessConfig.toString);
-    //删除dataProcessConfig.tempDir
-    val primaryFields = iffMetadata.getBody.fields.filter(_.getPrimaryKey.equals("Y")) //
+    val primaryFields = iffMetadata.getBody.fields.filter(_.primaryKey) //
     if(primaryFields==null||primaryFields.size==0){
         throw PrimaryKeyMissException("Primary Key of table"+dataProcessConfig.fTableName+" is required")
     }
@@ -42,6 +41,7 @@ class I2FWithDataFrameOnSparkJob
     logger.info(MESSAGE_ID_CNV1001,"join begin: "+new java.util.Date())
     val notChangeDF = sqlContext.sql(sql.toString)
     notChangeDF.unionAll(iTableDF).write.mode(SaveMode.Overwrite).insertInto(dataProcessConfig.dbName+"."+dataProcessConfig.fTableName)
+
     /*logger.info(MESSAGE_ID_CNV1001,"join end: "+new java.util.Date())
     logger.info(MESSAGE_ID_CNV1001,"df to rdd begin: "+new java.util.Date())
     val newFullRDD = notChangeDF.unionAll(iTableDF).rdd.map(row=>row.toSeq.reduceLeft(_+this.fieldDelimiter+_))
