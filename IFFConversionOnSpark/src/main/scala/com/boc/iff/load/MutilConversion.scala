@@ -357,6 +357,7 @@ trait MutilConversionOnSparkJob[T<:MutilConversionOnSparkConfig]
                 val fieldType = iffField.typeInfo
                 currentName = iffField.name
                 currentValue = fields(dataInd)
+                //dataMap += (iffField.name+"DataStringValue" -> fields(dataInd))
                 if(StringUtils.isNotBlank(fields(dataInd))) {
                   fieldType match {
                     case fieldType: CInteger => dataMap += (iffField.name -> fields(dataInd).trim.toInt)
@@ -386,7 +387,7 @@ trait MutilConversionOnSparkJob[T<:MutilConversionOnSparkConfig]
                   if(success){
                     sb.append(convertField(iffField, dataMap)).append(fieldDelimiter) //`
                   }else{
-                    errorMessage =  iffField.name + "ERROR validateField"
+                    errorMessage =  iffField.name + " ERROR validateField"
                   }
                 }catch{
                   case e:Exception=>

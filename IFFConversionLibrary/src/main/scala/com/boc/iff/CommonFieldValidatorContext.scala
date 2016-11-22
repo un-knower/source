@@ -26,7 +26,7 @@ class CommonFieldValidatorContext() extends Serializable {
 
   def validateField(iffField: IFFField, fieldValues: HashMap[String,Any]) = {
     val fieldType = iffField.typeInfo
-    var fieldValue = fieldValues.getOrElse(iffField.name, "").toString
+    val fieldValue = fieldValues.getOrElse(iffField.name, "").toString
     val normalCheck = fieldType match {
       case fieldType@IFFDate() => validate(fieldType, fieldValue)
       case fieldType@IFFTime() => validate(fieldType, fieldValue)
@@ -42,23 +42,8 @@ class CommonFieldValidatorContext() extends Serializable {
       case fieldType@IFFInteger() => validate(fieldType, fieldValue)
       case fieldType@IFFDouble() => validate(fieldType, fieldValue)
       case fieldType@CString() => validate(fieldType, fieldValue)
-      case fieldType@CDecimal() =>
-        if(StringUtils.isNotEmpty(fieldValue)){
-          var pattern = "#"*(fieldType.precision-fieldType.scale)
-          if(fieldType.scale>0){
-            pattern += "."+"#"*fieldType.scale
-          }
-          val format = new DecimalFormat(pattern)
-          fieldValue = format.format(fieldValue.toDouble)
-        }
-        validate(fieldType, fieldValue)
-      case fieldType@CInteger() =>
-        if(StringUtils.isNotEmpty(fieldValue)&&fieldType.maxlength>0){
-          var pattern = "#"*(fieldType.maxlength)
-          val format = new DecimalFormat(pattern)
-          fieldValue = format.format(fieldValue.toInt)
-        }
-        validate(fieldType, fieldValue)
+      case fieldType@CDecimal() => validate(fieldType, fieldValue)
+      case fieldType@CInteger() => validate(fieldType, fieldValue)
       case fieldType@CDate() => validate(fieldType, fieldValue)
       case fieldType@CTime() => validate(fieldType, fieldValue)
       case fieldType@CTimestamp() => validate(fieldType, fieldValue)

@@ -1,7 +1,11 @@
 package com.boc.iff
+import java.text.DecimalFormat
+
 import com.boc.iff.model._
+import org.apache.commons.lang.StringUtils
 /**
   * Created by cvinc on 2016/6/23.
+  *
   * @author www.birdiexx.com
   */
 
@@ -27,7 +31,23 @@ object CommonFieldValidator {
     //检验长度、数字、格式
 
     override def validate(fieldType: CDecimal,fieldValue: String) = {
-      FieldValidator.validatCDecimal(fieldType,fieldValue)
+      var checkValue = fieldValue
+      if (StringUtils.isNotEmpty(checkValue)) {
+        var pattern = "#" * (fieldType.precision - fieldType.scale)
+        if (fieldType.scale > 0) {
+          pattern += "." + "#" * fieldType.scale
+        }
+        val format = new DecimalFormat(pattern)
+        checkValue = format.format(checkValue.toDouble)
+        if (checkValue.toDouble != fieldValue.toDouble) {
+          false
+        }else{
+          FieldValidator.validatCDecimal(fieldType, checkValue)
+        }
+      }else{
+        FieldValidator.validatCDecimal(fieldType, checkValue)
+      }
+
     }
   }
   implicit object CDecimalValidField extends CDecimalFieldValidator
@@ -35,7 +55,13 @@ object CommonFieldValidator {
   trait CIntegerFieldValidator extends CommonFieldValidator[CInteger] {
     //检验数字
     override def validate(fieldType: CInteger,fieldValue: String) = {
-      FieldValidator.validatCInt(fieldType,fieldValue)
+      var checkVal = fieldValue
+      if(StringUtils.isNotEmpty(checkVal)&&fieldType.maxlength>0){
+        val pattern = "#"*(fieldType.maxlength)
+        val format = new DecimalFormat(pattern)
+        checkVal = format.format(checkVal.toInt)
+      }
+      FieldValidator.validatCInt(fieldType,checkVal)
     }
   }
   implicit object CIntegerValidField extends CIntegerFieldValidator
