@@ -1,7 +1,9 @@
 package com.boc.iff
 
+import java.io.FileInputStream
 import java.nio.charset.CharsetDecoder
 import java.text.DecimalFormat
+import java.util.Properties
 
 import com.boc.iff.model._
 
@@ -16,6 +18,10 @@ import org.apache.commons.lang.StringUtils
   */
 class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IFFFileInfo, val decoder: CharsetDecoder) extends Serializable {
 
+  val logger = new ECCLogger()
+  val prop = new Properties()
+  prop.load(new FileInputStream("/app/birdie/bochk/IFFConversion/config/config.properties"))
+  logger.configure(prop)
   private def convert[T <: IFFFieldType](fieldType: T, fieldValue:String)
                                         (implicit convertor: CommonFieldConvertor[T]): String = {
     convertor.convert(fieldType, fieldValue, decoder)
@@ -25,7 +31,13 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
     val fieldType = iffField.typeInfo
     var fieldValue = ""
     if(StringUtils.isNotEmpty(iffField.expression)){
-      val result = Ognl.getValue(iffField.expression,JavaConversions.mapAsJavaMap(fieldValues))
+      var result:Any = null
+      iffField.expression = iffField.expression.trim
+      if(iffField.expression.startsWith("IF")){
+        result = IfElseParser.parser(iffField.expression,JavaConversions.mapAsJavaMap(fieldValues))
+      }else{
+        result = Ognl.getValue(iffField.expression,JavaConversions.mapAsJavaMap(fieldValues))
+      }
       if(result!=null){
         fieldValues += (iffField.name->result)
         fieldValue=result.toString

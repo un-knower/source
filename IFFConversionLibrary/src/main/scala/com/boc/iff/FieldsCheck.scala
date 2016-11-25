@@ -206,7 +206,7 @@ object FieldValidator extends FieldsCheck {
     }else{
       import scala.collection.JavaConversions._
       for(exp<-list){
-        val result=Ognl.getValue(exp,JavaConversions.mapAsJavaMap(hashMap))
+        val result=Ognl.getValue(exp.trim,JavaConversions.mapAsJavaMap(hashMap))
         if(!result.asInstanceOf[Boolean]){
           return false
         }
