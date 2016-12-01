@@ -15,8 +15,6 @@ object IfElseParser{
   logger.configure(prop)
 
   def parser(express:String,values:Map[String,Any]):Any={
-    logger.info("IEF","express:"+express)
-    logger.info("values","values:"+values.toString)
     val expTrim = express.trim()
     if(expTrim.startsWith("IF")){
       var startIndex = expTrim.indexOf("(", 2)

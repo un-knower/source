@@ -77,7 +77,9 @@ class FixedConversionOnSparkJob
         e.printStackTrace()
         logger.error("iffFileInputStream close error","iffFileInputStream close error")
     }
+    logger.info("blockPositionQueue Info", "blockPositionQueueSize:"+blockPositionQueue.size())
     blockPositionQueue
+
   }
 
   override protected def getDataFileProcessor(): DataFileProcessor = new FixDataFileProcessor

@@ -39,7 +39,6 @@ class I2FOnSparkJob  extends DataProcessOnSparkJob with Serializable {
     //删除临时目录
     DFSUtils.deleteDir(tempDir)
     noChangeRdd.union(newRDD).saveAsTextFile(tempDir)
-
     //删除目标表数据
     DFSUtils.deleteDir(this.dataProcessConfig.fTableDatFilePath)
     DFSUtils.createDir(this.dataProcessConfig.fTableDatFilePath)

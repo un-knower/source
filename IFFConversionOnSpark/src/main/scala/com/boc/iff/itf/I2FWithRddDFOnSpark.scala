@@ -34,6 +34,7 @@ class I2FWithRddDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
       }
       Row(key,x)
     }
+
     val structFields = new util.ArrayList[StructField]()
     structFields.add(DataTypes.createStructField("id",DataTypes.StringType,true))
     structFields.add(DataTypes.createStructField("content",DataTypes.StringType,true))

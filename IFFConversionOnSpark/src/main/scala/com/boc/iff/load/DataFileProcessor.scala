@@ -107,6 +107,7 @@ class FixDataFileProcessor extends DataFileProcessor{
           recordLength += readLength
         }
       }
+      currentBlockReadedBytesCount+=recordLength
       for (iffField <- iffMetadata.body.fields if (!iffField.virtual)) {
         var fieldVal = new String(java.util.Arrays.copyOfRange(recordBytes, iffField.startPos, iffField.endPos + 1), iffMetadata.sourceCharset)
         if (StringUtils.isNotBlank(fieldVal)&&needConvertSpecialChar) {

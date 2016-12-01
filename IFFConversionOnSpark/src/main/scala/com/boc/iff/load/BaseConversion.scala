@@ -1,6 +1,6 @@
 package com.boc.iff.load
 
-import java.io.{ File, FileInputStream}
+import java.io.{File, FileInputStream}
 import java.util
 import java.util.Properties
 import java.util.concurrent.LinkedBlockingQueue
@@ -15,9 +15,12 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.hadoop.io.IOUtils
 import org.apache.hadoop.yarn.conf.YarnConfiguration
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.{Row, SQLContext, SaveMode}
+import org.apache.spark.sql.types.{DataTypes, StructField}
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration.Duration
@@ -163,7 +166,6 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
   }
 
   protected def isDirectory(fileName: String): Boolean = {
-    logger.info("fileName",fileName)
     iffConversionConfig.iffFileMode match {
       case FileMode.LOCAL =>
         val f = new File(fileName)
@@ -176,7 +178,6 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
   }
 
   override protected def openIFFFileInputStream(fileName: String): java.io.InputStream = {
-    logger.info("fileName",fileName)
     iffConversionConfig.iffFileMode match {
       case FileMode.LOCAL => super.openIFFFileInputStream(fileName)
       case FileMode.DFS =>
@@ -189,7 +190,6 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
   }
 
   protected def getIFFFilePath(fileName: String):java.util.List[String] = {
-    logger.info("fileName",fileName)
     val datafiles = new util.ArrayList[String]
     iffConversionConfig.iffFileMode match {
       case FileMode.LOCAL =>
@@ -204,14 +204,11 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       case FileMode.DFS =>
         val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
         val filePath = new Path(fileName)
-        logger.info("fileSystem.isDirectory","fileSystem.isDirectory"+fileSystem.isDirectory(filePath))
         if(fileSystem.isDirectory(filePath)){
-          logger.info("fileSystem.isDirectory","fileSystem.isDirectory")
           val fi = fileSystem.listFiles(filePath,false)
           while(fi.hasNext){
             val fs = fi.next()
             if(fs.isFile){
-              logger.info("getPath****************","**********"+fs.getPath.toString)
               fileGzipFlgMap += (fs.getPath.toString->checkGZipFile(fs.getPath.toString))
               datafiles.add(fs.getPath.toString)
             }
@@ -227,10 +224,17 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
   protected def createBlocks: java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int,String)] = {
     val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int,String)]()
     val filePaths = getIFFFilePath(iffConversionConfig.iffFileInputPath+iffConversionConfig.filename)
-    val futureQueue = mutable.Queue[Future[java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)]]]()
+    //val futureQueue = mutable.Queue[Future[java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)]]]()
+
     for(index<-(0 until filePaths.size).view){
       val filePath = filePaths.get(index)
-      val conversionFuture = future { createBlockPositionQueue(filePath) }
+      val blockPq = createBlockPositionQueue(filePath)
+      for (j <- 0 until blockPq.size()) {
+        val (blockIndex, blockPosition, blockSize) = blockPq.take()
+        val block: (Int, Long, Int, String) = (blockIndex, blockPosition, blockSize, filePath)
+        blockPositionQueue.put(block)
+      }
+      /*val conversionFuture = future { createBlockPositionQueue(filePath) }
       conversionFuture.onComplete{
         case Success(blockPq) =>
           for (j <- 0 until blockPq.size()) {
@@ -240,12 +244,13 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
           }
         case Failure(ex) => throw ex
       }
-      futureQueue.enqueue(conversionFuture)
+      futureQueue.enqueue(conversionFuture)*/
     }
-    while(futureQueue.nonEmpty){
+
+    /*while(futureQueue.nonEmpty){
       val future = futureQueue.dequeue()
       Await.ready(future, Duration.Inf)
-    }
+    }*/
     logger.info("blockPositionQueue Info", "blockPositionQueueSize:"+blockPositionQueue.size())
     blockPositionQueue
   }
@@ -344,6 +349,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         dataFileProcessor.open(inputStream,blockSize)
         while (dataFileProcessor.haveMoreLine()) {
           val fields = dataFileProcessor.getLineFields()
+          logger.info("fdata","****"+fields)
           if (fields.size>0) {
             var dataInd = 0
             val dataMap = new mutable.HashMap[String, Any]
@@ -414,6 +420,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     val iffConversionConfig = this.iffConversionConfig
     implicit val configuration = sparkContext.hadoopConfiguration
     val blockPositionQueue = createBlocks
+    logger.info("blockPositionQueue final","*******"+blockPositionQueue)
     val convertByPartitions = createConvertOnDFSByPartitionsFunction
     val broadcast: org.apache.spark.broadcast.Broadcast[mutable.ListBuffer[Long]]
     = sparkContext.broadcast(mutable.ListBuffer())
@@ -421,14 +428,18 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     val tempDir = getTempDir
     val errorDir = getErrorFileDir
     DFSUtils.deleteDir(tempDir)
+    val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
+    val tmpPath = new Path(tempDir)
+    if (!fileSystem.isDirectory(tmpPath)){
+      logger.info(MESSAGE_ID_CNV1001, "Create Dir: " + tmpPath.toString)
+      fileSystem.mkdirs(tmpPath)
+    }
     DFSUtils.deleteDir(errorDir)
     val conversionJob: (Unit=>String) = { _=>
       val blockPosition = blockPositionQueue.take()
       val blockIndex = blockPosition._1
       val filePath = blockPosition._4
       val filename = filePath.substring(filePath.lastIndexOf("/")+1)
-      logger.info("blockIndex",blockIndex.toString)
-      logger.info("filePath",filePath)
       val rdd = sparkContext.makeRDD(Seq(blockPosition), 1)
       val convertedRecords = rdd.mapPartitions(convertByPartitions)
       val tempOutputDir = "%s/%s-%05d".format(tempDir, filename,blockIndex)
@@ -439,21 +450,9 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         val errorRecordNumber = errorRcdRDD.count()
         broadcast.value += errorRecordNumber
       }
-      convertedRecords.filter(!_.endsWith("ERROR")).saveAsTextFile(tempOutputDir)
+      saveRdd(convertedRecords.filter(!_.endsWith("ERROR")),tempOutputDir)
       errorRcdRDD.saveAsTextFile(errorOutputDir)
       convertedRecords.unpersist()
-
-      /*
-      val fileStatusArray = fileSystem.listStatus(new Path(tempOutputDir)).filter(_.getLen > 0)
-      for (fileStatusIndex <- fileStatusArray.indices.view) {
-        val fileStatus = fileStatusArray(fileStatusIndex)
-        val fileName =
-          if (fileStatusArray.length == 1) "%s/%s-%05d".format(iffConversionConfig.datFileOutputPath,filename, blockIndex)
-          else "%s/%s-%05d-%05d".format(iffConversionConfig.datFileOutputPath,filename, blockIndex, fileStatusIndex)
-        val srcPath = fileStatus.getPath
-        val dstPath = new Path(fileName)
-        DFSUtils.moveFile(srcPath, dstPath)
-      }*/
       tempOutputDir
     }
 
@@ -476,7 +475,11 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       }
     }
     saveTargetData()
-    DFSUtils.deleteDir(tempDir)
+    DFSUtils .deleteDir(tempDir)
+  }
+
+  protected def saveRdd(rdd:RDD[String],targetPath:String): Unit ={
+    rdd.saveAsTextFile(targetPath)
   }
 
   protected def combineMutilFileToSingleFile(path:String):Unit={
@@ -549,6 +552,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
 
   /**
     * 转换 IFF 数据文件
+    *
     * @author www.birdiexx.com
     */
   override protected def convertFile(): Unit = {
@@ -562,6 +566,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     * 1. 检查输入文件是否存在
     * 2. 加载配置文件
     * 3. 查询目标表信息
+    *
     * @author www.birdiexx.com
     * @return
     */
@@ -590,6 +595,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
 
   /**
     * 注册使用 kryo 进行序列化的类
+    *
     * @author www.birdiexx.com
     * @return
     **/
@@ -600,6 +606,79 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
 
   override protected def runOnSpark(jobConfig: T): Unit = {
     run(jobConfig)
+  }
+
+}
+
+trait ParquetConversionOnSparkJob[T<:BaseConversionOnSparkConfig] extends BaseConversionOnSparkJob[T] with Serializable{
+  override protected def saveRdd(rdd:RDD[String],targetPath:String): Unit ={
+    val fieldDelimiter = this.fieldDelimiter
+    val fields: List[IFFField] = iffMetadata.getBody.fields.filter(!_.filter)
+    val basePk2Map= (x:String) => {
+      val rowData = x.split(fieldDelimiter)
+      val array = new ArrayBuffer[String]
+      for(v<-rowData){
+        array += v
+      }
+      Row.fromSeq(array)
+    }
+    val structFields = new util.ArrayList[StructField]()
+    for(f <- fields) {
+      structFields.add(DataTypes.createStructField(f.name, DataTypes.StringType, true))
+    }
+    val sqlContext = new SQLContext(sparkContext)
+    val structType = DataTypes.createStructType(structFields)
+    val rddN = rdd.map(basePk2Map)
+    val df = sqlContext.createDataFrame(rddN,structType)
+    df.write.mode(SaveMode.Append).parquet(targetPath)
+  }
+
+  override protected def saveTargetData():Unit={
+    if(iffConversionConfig.autoDeleteTargetDir)cleanDataFile()
+    val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
+    val sourceFilePath = new Path(getTempDir)
+    val fileStatus = fileSystem.getFileStatus(sourceFilePath)
+    val fileStatusStrack:mutable.Stack[FileStatus] = new mutable.Stack[FileStatus]()
+    fileStatusStrack.push(fileStatus)
+    var index:Int = 0;
+    var commonMetadataFlag = false
+    var metadataFlag = false
+    while(!fileStatusStrack.isEmpty){
+      val fst = fileStatusStrack.pop()
+      if(fst.isDirectory){
+        val fileStatusS = fileSystem.listStatus(fst.getPath)
+        for(f<-fileStatusS){
+          fileStatusStrack.push(f)
+        }
+      }else if(fst.getLen>0){
+        val srcPath = fst.getPath
+        if(srcPath.toString.endsWith("_common_metadata")) {
+          if(!commonMetadataFlag) {
+            val fileName =  "%s/%s".format(iffConversionConfig.datFileOutputPath,"_common_metadata")
+            val dstPath = new Path(fileName)
+            if(!fileSystem.exists(dstPath)) {
+              DFSUtils.moveFile(fileSystem, srcPath, dstPath)
+            }
+            commonMetadataFlag = true
+          }
+        }else if(srcPath.toString.endsWith("_metadata")) {
+          if(!metadataFlag) {
+            val fileName =  "%s/%s".format(iffConversionConfig.datFileOutputPath,"_metadata")
+            val dstPath = new Path(fileName)
+            if(!fileSystem.exists(dstPath)) {
+              DFSUtils.moveFile(fileSystem, srcPath, dstPath)
+            }
+            metadataFlag = true
+          }
+        }else{
+          val fileName =  "%s/%s-%05d%s".format(iffConversionConfig.datFileOutputPath,sparkContext.applicationId, index,".gz.parquet")
+          val dstPath = new Path(fileName)
+          DFSUtils.moveFile(fileSystem,srcPath, dstPath)
+          index+=1
+        }
+      }
+    }
+
   }
 
 }

@@ -8,7 +8,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 
 import scala.collection.mutable.ArrayBuffer
 
-class I2FWithCpOnSparkJob  extends DataProcessOnSparkJob with Serializable {
+class I2FWithCpOnSparkJob extends DataProcessOnSparkJob with Serializable {
 
   override def processFile = {
     println(this.dataProcessConfig.toString);
@@ -25,12 +25,7 @@ class I2FWithCpOnSparkJob  extends DataProcessOnSparkJob with Serializable {
       logger.info(MESSAGE_ID_CNV1001, "Auto Delete Target Dir: " + dataProcessConfig.fTableDatFilePath)
       implicit val configuration = sparkContext.hadoopConfiguration
       DFSUtils.deleteDir(dataProcessConfig.fTableDatFilePath)
-      val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
-      val datFileOutputPath = new Path(dataProcessConfig.fTableDatFilePath)
-      if (!fileSystem.isDirectory(datFileOutputPath)) {
-        logger.info(MESSAGE_ID_CNV1001, "Create Dir: " + datFileOutputPath.toString)
-        fileSystem.mkdirs(datFileOutputPath)
-      }
+      DFSUtils.createDir(dataProcessConfig.fTableDatFilePath)
     }
     //将没有改变的数据转移到目标表目录
     val fileSystem = FileSystem.get(configuration)
