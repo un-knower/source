@@ -1,18 +1,14 @@
 package com.boc.iff
 
-import java.io.FileInputStream
 
 import scala.collection.mutable.Stack
-import java.util.{Map, Properties}
+import java.util.Map
 
 import ognl.Ognl
 
 
 object IfElseParser{
-  val logger = new ECCLogger()
-  val prop = new Properties()
-  prop.load(new FileInputStream("/app/birdie/bochk/IFFConversion/config/config.properties"))
-  logger.configure(prop)
+
 
   def parser(express:String,values:Map[String,Any]):Any={
     val expTrim = express.trim()

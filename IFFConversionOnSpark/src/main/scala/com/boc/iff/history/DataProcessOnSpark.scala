@@ -7,14 +7,19 @@ import com.boc.iff.itf.DataProcessOnSparkConfig
 import com.boc.iff.model._
 import com.boc.iff.{DataProcessConfig, SparkJobConfig, _}
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, SQLContext}
 
 class HistoryProcessOnSparkConfig extends DataProcessConfig with SparkJobConfig {
 
 }
 
 class HistoryProcessOnSparkJob
-  extends HistoryProcess[DataProcessOnSparkConfig,DataFrame] with SparkJob[DataProcessOnSparkConfig] {
+  extends HistoryProcess[DataProcessOnSparkConfig,DataFrame] with SparkJob[DataProcessOnSparkConfig] with DataReader with DataWriter {
+
+  protected var sqlContext:SQLContext = null
+
+  protected val beginDTName:String = "begin_date"
+  protected val endDTName:String = "end_date"
 
   protected def deleteTargetDir(path:String,dir:String) = {
     logger.info(MESSAGE_ID_CNV1001, "Delete Target Dir: " + path+"/"+dir)
@@ -93,7 +98,14 @@ class HistoryProcessOnSparkJob
    * @return
    */
   override protected def prepare(): Boolean = {
-    val result = super.prepare()
+    var result = super.prepare()
+    if(result){
+      try{
+        sqlContext = new SQLContext(this.sparkContext)
+      }catch {
+        case e:Exception => result = false
+      }
+    }
     result
   }
 
@@ -126,18 +138,24 @@ class HistoryProcessOnSparkJob
   }
 
   override def processFile = {
+    val incDF = getIncrease(dataProcessConfig.iTableDatFilePath,this.iffMetadata)
+    if(incDF!=null) {
+      val hisDF = getHistory(dataProcessConfig.fTableDatFilePath, this.iffMetadata)
+      val (closeDF, openDF) = diffHistoryAndIncrease(incDF, hisDF, this.iffMetadata)
+      appendHistory(closeDF, openDF)
+    }
 
   }
 
-  override def getIncrease(fileName: String,iffMetadata: IFFMetadata) ={
-    ???
+  override def getIncrease(fileName: String,iffMetadata: IFFMetadata):DataFrame ={
+    getData(fileName,iffMetadata,sqlContext,fieldDelimiter)
   }
 
-  override def getHistory(fileName: String,iffMetadata: IFFMetadata)={
-    ???
+  override def getHistory(fileName: String,iffMetadata: IFFMetadata):DataFrame={
+    getData("%s/%s".format(fileName,"*_OPEN"),iffMetadata,sqlContext,fieldDelimiter)
   }
 
-  override def diffHistoryAndIncrease(Increase:DataFrame,History:DataFrame)={
+  override def diffHistoryAndIncrease(increase:DataFrame,history:DataFrame,iffMetadata: IFFMetadata):(DataFrame,DataFrame)={
     ???
   }
 
@@ -145,8 +163,20 @@ class HistoryProcessOnSparkJob
     ???
   }
 
-  override def appendHistory(): Unit={
-    ???
+  override def appendHistory(closeDF:DataFrame,openDF:DataFrame): Unit={
+    val tmp = getTempDir(dataProcessConfig.fTableName)
+    logger.info(MESSAGE_ID_CNV1001,"clean tmp table")
+    implicit val configuration = sparkContext.hadoopConfiguration
+    DFSUtils.deleteDir(tmp)
+    if(closeDF!=null) {
+      val closeTmpPath = "%s/%s".format(tmp, "close")
+      writeData(closeDF, closeTmpPath, fieldDelimiter)
+    }
+    if(openDF!=null) {
+      val openTmpPath = "%s/%s".format(tmp, "open")
+      writeData(openDF, openTmpPath, fieldDelimiter)
+    }
+    saveToTarget(tmp,dataProcessConfig.fTableDatFilePath,sparkContext)
   }
 }
 

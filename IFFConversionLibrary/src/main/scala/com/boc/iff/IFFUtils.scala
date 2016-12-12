@@ -2,6 +2,8 @@ package com.boc.iff
 
 import java.nio.charset.{Charset, CharsetDecoder, CodingErrorAction, UnsupportedCharsetException}
 import java.nio.{ByteBuffer, CharBuffer}
+import java.text.SimpleDateFormat
+import java.util.GregorianCalendar
 
 import com.ibm.icu.charset.CharsetProviderICU
 
@@ -87,6 +89,21 @@ object IFFUtils {
     }
     println("value:"+value+" unitPow:"+unitPow)
     value * math.pow(1024, unitPow).toInt
+  }
+
+  def addDays(date:String,num:Int):String={
+    val d1:String = date.substring(0, 4)
+    val d2:String = date.substring(4, 6)
+    val d3:String = date.substring(6, 8)
+    val mortgage = new GregorianCalendar(Integer.parseInt(d1), Integer.parseInt(d2) - 1, Integer.parseInt(d3))
+    mortgage.add(5, num)
+    val format:SimpleDateFormat = new SimpleDateFormat(IFFConversionConfig.ACCOUNT_DATE_PATTERN)
+    return format.format(mortgage.getTime())
+  }
+
+  def dateToString(date:java.util.Date):String={
+    val format:SimpleDateFormat = new SimpleDateFormat(IFFConversionConfig.ACCOUNT_DATE_PATTERN)
+    return format.format(date)
   }
 
 }

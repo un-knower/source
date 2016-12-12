@@ -34,6 +34,7 @@ class BaseConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfi
   var iffFileMode: DFSUtils.FileMode.ValueType = DFSUtils.FileMode.LOCAL
   var maxBlockSize: Int = -1                                                //最大每次读取文件的块大小
   var minBlockSize: Int = -1                                                //最小每次读取文件的块大小
+  var dataLineEndWithSeparatorF:String = "Y"                            //数据文件行是否以分隔符结束 Y-是 N-否
 
   override protected def makeOptions(optionParser: scopt.OptionParser[_]) = {
     super.makeOptions(optionParser)
@@ -46,6 +47,9 @@ class BaseConversionOnSparkConfig extends IFFConversionConfig with SparkJobConfi
     optionParser.opt[String]("min-block-size")
       .text("Min Block Size")
       .foreach { x=>this.minBlockSize = IFFUtils.getSize(x) }
+    optionParser.opt[String]("data-line-end-with-separator-f")
+      .text("dataLineEndWithSeparatorF")
+      .foreach { x=>this.dataLineEndWithSeparatorF = x }
   }
 
   override def toString = {
@@ -184,8 +188,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
         val filePath = new Path(fileName)
         val iffFileInputStream = fileSystem.open(filePath, iffConversionConfig.readBufferSize)
-        if(iffFileInfo.isGzip) new GZIPInputStream(iffFileInputStream, iffConversionConfig.readBufferSize)
-        else iffFileInputStream
+        iffFileInputStream
     }
   }
 

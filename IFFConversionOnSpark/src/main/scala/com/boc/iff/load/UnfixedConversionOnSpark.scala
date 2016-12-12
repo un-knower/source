@@ -57,9 +57,9 @@ class UnfixedConversionOnSparkJob
             } else {
               //. 检查记录的列数
               if (countLineNumber == 0 ) {
-                var lineSeq:Int = StringUtils.splitByWholeSeparatorPreserveAllTokens(lineStr,iffMetadata.srcSeparator).length
-                if(lineStr.endsWith(iffMetadata.srcSeparator)){
-                  lineSeq -= 1;
+                var lineSeq:Int = StringUtils.countMatches(lineStr,iffMetadata.srcSeparator)
+                if("N".endsWith(iffConversionConfig.dataLineEndWithSeparatorF)){
+                  lineSeq+=1
                 }
                 if(lineSeq!= iffMetadata.body.getSourceLength) {
                   logger.error("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq + " iffMetadata.body" + iffMetadata.body.getSourceLength, "file number is not right")
