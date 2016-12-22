@@ -1,16 +1,65 @@
 package com.boc.iff.history
 
-import com.boc.iff.DFSUtils
+import com.boc.iff.{DFSUtils, IFFUtils}
 import com.boc.iff.IFFConversion._
 import com.boc.iff.itf.DataProcessOnSparkConfig
 import com.boc.iff.model._
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.spark.sql.DataFrame
 
 import scala.collection.mutable.ArrayBuffer
 
 class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
 
+  override def diffHistoryAndIncrease(increase:DataFrame,history:DataFrame,iffMetadata: IFFMetadata):(DataFrame,DataFrame)={
+    increase.registerTempTable("inc")
+    val primaryKeys = iffMetadata.getBody.fields.filter(_.primaryKey)
+    val fields = iffMetadata.getBody.fields.filter(!_.filter)
+    val acDate = IFFUtils.dateToString(dataProcessConfig.accountDate)
+    if(history==null){
+      val newOpen = new StringBuffer(" select ")
+      var index = 0
+      for(f<-fields){
+        if(index>0){
+          newOpen.append(" , ")
+        }
+        newOpen.append(" i."+f.getName)
+        index+=1
+      }
+      newOpen.append("'"+acDate+"' as "+this.beginDTName+", '9999-12-30' as "+this.endDTName+" from inc i ")
+      (null,sqlContext.sql(newOpen.toString))
+    }else{
+      val lastAcDate = IFFUtils.addDays(acDate,-1)
+      history.registerTempTable("hist")
+      val hisSql = new StringBuffer(" select ")//历史的查询语句
+      val newOpen = new StringBuffer(" select ")//新打开的查询语句
+      val condition = new StringBuffer(" ")//关联条件
+      var index = 0
+      for(f<-fields){
+        if(index>0){
+          hisSql.append(" , ")
+          newOpen.append(" , ")
+          condition.append(" and ")
+        }
+        hisSql.append(" h."+f.getName)
+        newOpen.append(" i."+f.getName)
+        condition.append(" h."+f.getName+" = i"+f.getName)
+        index+=1
+      }
+      hisSql.append(" from hist h left join inc i on ")
+      hisSql.append(condition)
+      val hisDF = sqlContext.sql(hisSql.toString)
+      val closeDF = hisDF.filter("i."+primaryKeys(0).name+" is null ").selectExpr("*","f."+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName)
+      val stillOpenDF = hisDF.filter("i."+primaryKeys(0).name+" is not null ").selectExpr("*","f."+this.beginDTName,"f."+this.endDTName)
+
+      newOpen.append("'"+acDate+"' as "+this.beginDTName+", '9999-12-30' as "+this.endDTName+" from inc i left join hist h on ")
+      newOpen.append(condition)
+      newOpen.append(" where h."+primaryKeys(0).getName +" is null")
+      val newOpenDF = sqlContext.sql(newOpen.toString)
+      (closeDF,stillOpenDF.unionAll(newOpenDF))
+    }
+  }
 }
 
 /**

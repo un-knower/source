@@ -2,7 +2,8 @@ package com.boc.iff.model
 
 import java.util
 
-import com.boc.iff.FormatSpec
+import com.boc.iff.{AviatorExpressionProcessor, FormatSpec}
+import org.apache.commons.lang.StringUtils
 
 import scala.beans.{BeanProperty, BooleanBeanProperty}
 import scala.collection.mutable
@@ -13,7 +14,7 @@ import scala.math.Ordering
   * Created by cvinc on 2016/6/8.
   */
 
-class IFFField extends Serializable {
+class IFFField extends Serializable with AviatorExpressionProcessor {
 
   @BeanProperty
   var name: String = _
@@ -60,6 +61,11 @@ class IFFField extends Serializable {
   @BeanProperty
   var virtual: Boolean = false
 
+  def initExpression:Unit = if(StringUtils.isNotEmpty(expression))initExpression(expression)
+
+  def getExpressionValue(params:java.util.Map[String,Any]):Any={
+    getValue(params)
+  }
 
   def toXMLString: String = {
     val sb = new StringBuilder

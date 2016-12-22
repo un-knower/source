@@ -35,35 +35,30 @@ class I2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
     var closeDF:DataFrame = null
     var newOpen = sqlContext.sql(newOpenSQL.toString)
     if(history!=null) {
-      val closeSQL = new StringBuffer("select ")
-      val stillOpenSQL = new StringBuffer("select ")
+      val hisSQL = new StringBuffer("select ")
       index = 0
       for(f<-fields){
         if(index>0){
-          closeSQL.append(" , ")
-          stillOpenSQL.append(" , ")
+          hisSQL.append(" , ")
         }
-        closeSQL.append("f."+f.name)
-        stillOpenSQL.append("f."+f.name)
+        hisSQL.append("f."+f.name)
         index+=1
       }
-      closeSQL.append(" ,f."+this.beginDTName+",'"+lastAcDate+"' as "+this.endDTName+" from hisTB f inner join incTB i on ")
-      stillOpenSQL.append(" ,f."+this.beginDTName+",f."+this.endDTName+" from hisTB f left join incTB i on ")
+      hisSQL.append(" from hisTB f left join incTB i on ")
       index=0
       for(p<-primaryKeys){
         if(index>0){
-          closeSQL.append(" and ")
-          stillOpenSQL.append(" and ")
+          hisSQL.append(" and ")
         }
-        closeSQL.append("f."+p.name+"=i."+p.name)
-        stillOpenSQL.append("f."+p.name+"=i."+p.name)
+        hisSQL.append("f."+p.name+"=i."+p.name)
       }
-      stillOpenSQL.append(" where f."+primaryKeys(0).name+" is null ")
-
       history.registerTempTable("hisTB")
-      closeDF = sqlContext.sql(closeSQL.toString)
-      val stillOpenDF = sqlContext.sql(stillOpenSQL.toString)
+      val hisDF = sqlContext.sql(hisSQL.toString)
+      hisDF.cache()
+      closeDF = hisDF.filter("i."+primaryKeys(0).name+" is not null ").selectExpr("*","f."+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName)
+      val stillOpenDF = hisDF.filter("i."+primaryKeys(0).name+" is null ").selectExpr("*","f."+this.beginDTName,"f."+this.endDTName)
       newOpen = newOpen.unionAll(stillOpenDF)
+      hisDF.unpersist()
     }
     (closeDF,newOpen)
   }

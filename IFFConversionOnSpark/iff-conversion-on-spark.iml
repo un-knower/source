@@ -14,6 +14,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="scala-sdk-2.10.4" level="application" />
     <orderEntry type="library" name="scala-sdk-2.11.8" level="application" />
+    <orderEntry type="library" name="scala-sdk-2.11.8" level="application" />
     <orderEntry type="module" module-name="iff-conversion-library" />
     <orderEntry type="module-library">
       <library name="Maven: com.ibm.icu:icu4j-52_1:1.0">
@@ -55,6 +56,24 @@
       <library name="Maven: com.ibm.as400:jt400:1.0">
         <CLASSES>
           <root url="jar://$MODULE_DIR$/../lib/jt400.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="Maven: com.googlecode.aviator:aviator:3.0.0">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../lib/aviator-3.0.0.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library name="Maven: org.mvel:mvel2:2.3.1.Final">
+        <CLASSES>
+          <root url="jar://$MODULE_DIR$/../lib/mvel2-2.3.1.Final.jar!/" />
         </CLASSES>
         <JAVADOC />
         <SOURCES />

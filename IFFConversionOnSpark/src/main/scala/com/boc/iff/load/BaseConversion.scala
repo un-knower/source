@@ -445,6 +445,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       val filename = filePath.substring(filePath.lastIndexOf("/")+1)
       val rdd = sparkContext.makeRDD(Seq(blockPosition), 1)
       val convertedRecords = rdd.mapPartitions(convertByPartitions)
+      convertedRecords.cache()
       val tempOutputDir = "%s/%s-%05d".format(tempDir, filename,blockIndex)
       val errorOutputDir = "%s/%s-%05d".format(errorDir, filename,blockIndex)
       logger.info(MESSAGE_ID_CNV1001, "[%s]Temporary Output: %s".format(Thread.currentThread().getName, tempOutputDir))
@@ -591,8 +592,14 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     }else{
       numExecutors
     }
+    System.setProperty("scala.concurrent.context.minThreads", String.valueOf(numberOfThread))
+    System.setProperty("scala.concurrent.context.numThreads", String.valueOf(numberOfThread))
     System.setProperty("scala.concurrent.context.maxThreads", String.valueOf(numberOfThread))
     logger.info(MESSAGE_ID_CNV1001, "Num Threads: " + numberOfThread)
+    for(i<-iffMetadata.getBody.fields){
+      i.initExpression
+    }
+    println("************************ version time 2016-12-22 17:00 ***************************")
     result
   }
 

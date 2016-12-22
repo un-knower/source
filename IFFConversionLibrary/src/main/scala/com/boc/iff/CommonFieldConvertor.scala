@@ -26,7 +26,7 @@ sealed trait CommonFieldConvertor[T<:IFFFieldType] {
     val formattedFieldValue = fieldType match {
       case fieldType: IFFFormatable if fieldType.formatSpec != null =>
         fieldType.formatSpec.getFormatObj.format(fieldValueConvertFromString)
-      case _ => fieldValueConvertFromString.toString
+      case _ => fieldValue
     }
     val trimedFieldValue = fieldType match {
       case fieldType: IFFNeedTrim if StringUtils.isNotEmpty(formattedFieldValue) =>
