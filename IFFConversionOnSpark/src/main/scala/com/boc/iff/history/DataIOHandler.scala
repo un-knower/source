@@ -16,22 +16,27 @@ import scala.collection.mutable.ArrayBuffer
   * Created by scutlxj on 2016/12/7.
   */
 trait DataReader {
+  protected val bgDTName:String = "begin_date"
+  protected val edDTName:String = "end_date"
 
+  def getInc(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
+    ???
+  }
 
-
-  def getData(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
+  def getHis(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
     ???
   }
 
 }
 
 trait TextDateReader extends DataReader{
-  override def getData(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
+  override def getInc(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
     val sparkContext = sqlContext.sparkContext
     val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
     var dataFrame:DataFrame = null
-    if(fileSystem.exists(new Path(filePath))) {
-      val fs = fileSystem.listStatus(new Path(filePath))
+    val path = filePath
+    if(fileSystem.exists(new Path(path))) {
+      val fs = fileSystem.listStatus(new Path(path))
       if(fs!=null&&fs.length>0) {
         val rdd = sparkContext.textFile(filePath)
         val fields: List[IFFField] = iffMetadata.getBody.fields.filter(!_.filter)
@@ -54,24 +59,77 @@ trait TextDateReader extends DataReader{
     }
     dataFrame
   }
+
+  override def getHis(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
+    val sparkContext = sqlContext.sparkContext
+    val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
+    var dataFrame:DataFrame = null
+    if(fileSystem.exists(new Path(filePath))) {
+      val fs = fileSystem.listStatus(new Path(filePath))
+      if(fs!=null&&fs.length>0) {
+        val rdd = sparkContext.textFile("%s/%s".format(filePath,"*_OPEN"))
+        val fields: List[IFFField] = iffMetadata.getBody.fields.filter(!_.filter)
+        val basePk2Map = (x: String) => {
+          val rowData = x.split(fieldSeparator)
+          val array = new ArrayBuffer[String]
+          for (v <- rowData) {
+            array += v
+          }
+          Row.fromSeq(array)
+        }
+        val structFields = new util.ArrayList[StructField]()
+        for (f <- fields) {
+          structFields.add(DataTypes.createStructField(f.name, DataTypes.StringType, true))
+        }
+        structFields.add(DataTypes.createStructField(bgDTName, DataTypes.StringType, true))
+        structFields.add(DataTypes.createStructField(edDTName, DataTypes.StringType, true))
+        val structType = DataTypes.createStructType(structFields)
+        val rddN = rdd.map(basePk2Map)
+        dataFrame = sqlContext.createDataFrame(rddN, structType)
+      }
+    }
+    dataFrame
+  }
 }
 
 trait ParquetDateReader extends DataReader{
-  override def getData(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
+  override def getInc(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
+    val sparkContext = sqlContext.sparkContext
+    val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
+    var dataFrame:DataFrame = null
+    val path = filePath
+    if(fileSystem.exists(new Path(path))) {
+      val pathFilter = new PathFilter {
+        override def accept(path: Path): Boolean = {
+          !(path.getName.equals("_metadata")||path.getName.equals("_common_metadata"))
+        }
+      }
+      val fs = fileSystem.listStatus(new Path(path),pathFilter)
+      if(fs!=null&&fs.length>0) {
+        dataFrame = sqlContext.read.parquet(filePath)
+      }
+    }
+    println("*********dataFrame: "+dataFrame)
+    dataFrame
+  }
+
+  override def getHis(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
+    println("*********filePath: "+filePath)
     val sparkContext = sqlContext.sparkContext
     val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
     var dataFrame:DataFrame = null
     if(fileSystem.exists(new Path(filePath))) {
       val pathFilter = new PathFilter {
         override def accept(path: Path): Boolean = {
-          !(path.getName.equals("_metadata")&&path.getName.equals("_common_metadata"))
+          !(path.getName.equals("_metadata")||path.getName.equals("_common_metadata"))
         }
       }
       val fs = fileSystem.listStatus(new Path(filePath),pathFilter)
       if(fs!=null&&fs.length>0) {
-        dataFrame = sqlContext.read.parquet(filePath)
+        dataFrame = sqlContext.read.parquet("%s/%s".format(filePath,"*_OPEN"))
       }
     }
+    println("*********dataFrame: "+dataFrame)
     dataFrame
   }
 
@@ -97,7 +155,7 @@ trait TextDataWriter extends DataWriter{
   override def saveToTarget(sourcePath: String,targetPath:String,sparkContext:SparkContext): Unit = {
     val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
     //移除目标目录中打开的记录
-    val openSts = fileSystem.listStatus(new Path(sourcePath),new PathFilter {
+    val openSts = fileSystem.listStatus(new Path(targetPath),new PathFilter {
       override def accept(path: Path): Boolean = {
         path.getName.endsWith("OPEN")
       }
@@ -126,6 +184,7 @@ trait TextDataWriter extends DataWriter{
     for(cs<-openFileSts.filter(_.getLen>0)){
       targetFilePath = new Path("%s/%s_%05d_%s".format(targetPath,appId,fileIndex,"OPEN"))
       DFSUtils.moveFile(fileSystem,cs.getPath,targetFilePath)
+      fileIndex += 1
     }
   }
 }
@@ -138,7 +197,7 @@ trait ParquetDataWriter extends DataWriter{
   override def saveToTarget(sourcePath: String,targetPath:String,sparkContext:SparkContext): Unit = {
     val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
     //移除目标目录中打开的记录
-    val openSts = fileSystem.listStatus(new Path(sourcePath),new PathFilter {
+    val openSts = fileSystem.listStatus(new Path(targetPath),new PathFilter {
       override def accept(path: Path): Boolean = {
         path.getName.endsWith("OPEN")
       }
@@ -162,7 +221,7 @@ trait ParquetDataWriter extends DataWriter{
 
     val pathFilter = new PathFilter {
       override def accept(path: Path): Boolean = {
-        !(path.getName.equals("_metadata")&&path.getName.equals("_common_metadata"))
+        !(path.getName.equals("_metadata")||path.getName.equals("_common_metadata"))
       }
     }
 
@@ -186,6 +245,7 @@ trait ParquetDataWriter extends DataWriter{
     for(cs<-openFileSts.filter(_.getLen>0)){
       targetFilePath = new Path("%s/%s_%05d_%s".format(targetPath,appId,fileIndex,"OPEN"))
       DFSUtils.moveFile(fileSystem,cs.getPath,targetFilePath)
+      fileIndex+=1
     }
   }
 }

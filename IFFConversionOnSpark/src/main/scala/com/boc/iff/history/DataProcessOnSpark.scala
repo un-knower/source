@@ -148,11 +148,11 @@ class HistoryProcessOnSparkJob
   }
 
   override def getIncrease(fileName: String,iffMetadata: IFFMetadata):DataFrame ={
-    getData(fileName,iffMetadata,sqlContext,fieldDelimiter)
+    getInc(fileName,iffMetadata,sqlContext,fieldDelimiter)
   }
 
   override def getHistory(fileName: String,iffMetadata: IFFMetadata):DataFrame={
-    getData("%s/%s".format(fileName,"*_OPEN"),iffMetadata,sqlContext,fieldDelimiter)
+    getHis(fileName,iffMetadata,sqlContext,fieldDelimiter)
   }
 
   override def diffHistoryAndIncrease(increase:DataFrame,history:DataFrame,iffMetadata: IFFMetadata):(DataFrame,DataFrame)={

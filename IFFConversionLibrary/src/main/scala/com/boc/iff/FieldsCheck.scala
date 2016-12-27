@@ -200,13 +200,13 @@ object FieldValidator extends FieldsCheck {
     validatBase(fieldType,fieldValue)&&checkDate(fieldValue,fieldType.pattern)
   }
 
-  def validatExpression(list: java.util.List[String],hashMap: mutable.HashMap[String,Any]):Boolean={
+  def validatExpression(list: java.util.List[String],hashMap: java.util.HashMap[String,Any]):Boolean={
     if(list==null||list.size()==0) {
       true
     }else{
       import scala.collection.JavaConversions._
       for(exp<-list){
-        val result=Ognl.getValue(exp.trim,JavaConversions.mapAsJavaMap(hashMap))
+        val result=Ognl.getValue(exp.trim,hashMap)
         if(!result.asInstanceOf[Boolean]){
           return false
         }

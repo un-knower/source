@@ -27,7 +27,7 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
         newOpen.append(" i."+f.getName)
         index+=1
       }
-      newOpen.append("'"+acDate+"' as "+this.beginDTName+", '9999-12-30' as "+this.endDTName+" from inc i ")
+      newOpen.append(",'"+acDate+"' as "+this.beginDTName+", '9999-12-30' as "+this.endDTName+" from inc i ")
       (null,sqlContext.sql(newOpen.toString))
     }else{
       val lastAcDate = IFFUtils.addDays(acDate,-1)
@@ -44,20 +44,22 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
         }
         hisSql.append(" h."+f.getName)
         newOpen.append(" i."+f.getName)
-        condition.append(" h."+f.getName+" = i"+f.getName)
+        condition.append(" h."+f.getName+" = i."+f.getName)
         index+=1
       }
-      hisSql.append(" from hist h left join inc i on ")
+      hisSql.append(",h."+this.beginDTName+" as fBeginDT,h."+this.endDTName+" as fEndDT,i."+primaryKeys(0).name+" as incKey from hist h left join inc i on ")
       hisSql.append(condition)
       val hisDF = sqlContext.sql(hisSql.toString)
-      val closeDF = hisDF.filter("i."+primaryKeys(0).name+" is null ").selectExpr("*","f."+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName)
-      val stillOpenDF = hisDF.filter("i."+primaryKeys(0).name+" is not null ").selectExpr("*","f."+this.beginDTName,"f."+this.endDTName)
-
-      newOpen.append("'"+acDate+"' as "+this.beginDTName+", '9999-12-30' as "+this.endDTName+" from inc i left join hist h on ")
+      hisDF.cache()
+      val closeDF = hisDF.filter("incKey is null ").selectExpr("*","fBeginDT as "+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
+      val stillOpenDF = hisDF.filter("incKey is not null ").selectExpr("*","fBeginDT as "+this.beginDTName,"fEndDT as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
+      hisDF.unpersist()
+      newOpen.append(",'"+acDate+"' as "+this.beginDTName+", '9999-12-30' as "+this.endDTName+" from inc i left join hist h on ")
       newOpen.append(condition)
       newOpen.append(" where h."+primaryKeys(0).getName +" is null")
       val newOpenDF = sqlContext.sql(newOpen.toString)
       (closeDF,stillOpenDF.unionAll(newOpenDF))
+
     }
   }
 }
@@ -67,7 +69,7 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
  */
 object F2FHistoryOnSpark extends App {
   val config = new DataProcessOnSparkConfig()
-  val job = new F2FHistoryOnSparkJob()
+  val job = new F2FHistoryOnSparkJob() with ParquetDateReader with ParquetDataWriter
   val logger = job.logger
   try {
     job.start(config, args)

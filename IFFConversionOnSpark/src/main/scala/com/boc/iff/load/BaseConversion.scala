@@ -310,7 +310,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
         对一个字段的数据进行转换操作
         为了减少层次，提高程序可读性，这里定义了一个闭包方法作为参数，会在下面的 while 循环中被调用
        */
-      val convertField: (IFFField, mutable.HashMap[String,Any])=> String = { (iffField, record) =>
+      val convertField: (IFFField, java.util.HashMap[String,Any])=> String = { (iffField, record) =>
         if (iffField.isFilter) ""
         else if (iffField.isConstant) {
           iffField.getDefaultValue.replaceAll("#FILENAME#", iffFileInfo.fileName)
@@ -355,7 +355,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
           logger.info("fdata","****"+fields)
           if (fields.size>0) {
             var dataInd = 0
-            val dataMap = new mutable.HashMap[String, Any]
+            val dataMap = new java.util.HashMap[String, Any]
             val sb = new StringBuffer()
             var success = true
             var errorMessage = ""
@@ -369,12 +369,12 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
                 //dataMap += (iffField.name+"DataStringValue" -> fields(dataInd))
                 if(StringUtils.isNotBlank(fields(dataInd))) {
                   fieldType match {
-                    case fieldType: CInteger => dataMap += (iffField.name -> fields(dataInd).trim.toInt)
-                    case fieldType: CDecimal => dataMap += (iffField.name -> fields(dataInd).trim.toDouble)
-                    case _ => dataMap += (iffField.name -> fields(dataInd))
+                    case fieldType: CInteger => dataMap.put(iffField.name,fields(dataInd).trim.toInt)
+                    case fieldType: CDecimal => dataMap.put(iffField.name,fields(dataInd).trim.toDouble)
+                    case _ => dataMap.put(iffField.name,fields(dataInd))
                   }
                 }else{
-                  dataMap += (iffField.name -> "")
+                  dataMap.put(iffField.name, "")
                 }
                 dataInd += 1
               }

@@ -22,23 +22,17 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
     convertor.convert(fieldType, fieldValue, decoder)
   }
 
-  def convert(iffField: IFFField, fieldValues: mutable.HashMap[String,Any]): String = {
+  def convert(iffField: IFFField, fieldValues: java.util.HashMap[String,Any]): String = {
     val fieldType = iffField.typeInfo
     var fieldValue = ""
     if(StringUtils.isNotEmpty(iffField.expression)){
-      var result:Any = null
-      iffField.expression = iffField.expression.trim
-      if(iffField.expression.startsWith("IF")){
-        result = IfElseParser.parser(iffField.expression,JavaConversions.mapAsJavaMap(fieldValues))
-      }else{
-        result = Ognl.getValue(iffField.expression,JavaConversions.mapAsJavaMap(fieldValues))
-      }
+      val result:Any = iffField.getExpressionValue(fieldValues)
       if(result!=null){
-        fieldValues += (iffField.name->result)
+        fieldValues.put(iffField.name,result)
         fieldValue=result.toString
       }
-    }else if(fieldValues.contains(iffField.name)){
-      fieldValue = fieldValues(iffField.name).toString
+    }else if(fieldValues.containsKey(iffField.name)){
+      fieldValue = fieldValues.get(iffField.name).toString
     }
     fieldType match {
       case fieldType@IFFDate() => convert(fieldType, fieldValue)
@@ -83,7 +77,7 @@ sealed trait CommonFieldWithConvertor {
   protected val commonFieldConvertorContext: CommonFieldConvertorContext = null
   protected val iffField: IFFField = null
 
-  def convert(fieldValue: mutable.HashMap[String,Any]): String = {
+  def convert(fieldValue: java.util.HashMap[String,Any]): String = {
     commonFieldConvertorContext.convert(iffField, fieldValue)
   }
 

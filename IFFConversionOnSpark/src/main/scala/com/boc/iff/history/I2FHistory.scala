@@ -8,6 +8,8 @@ import com.boc.iff.model.IFFMetadata
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.DataFrame
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * Created by scutlxj on 2016/12/8.
   */
@@ -33,6 +35,7 @@ class I2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
     newOpenSQL.append(" ,'"+acDate+"' as "+this.beginDTName+",'99991231' as "+this.endDTName+" from incTB i ")
     increase.registerTempTable("incTB")
     var closeDF:DataFrame = null
+    logger.info(MESSAGE_ID_CNV1001,"newOpenSQL: "+ newOpenSQL)
     var newOpen = sqlContext.sql(newOpenSQL.toString)
     if(history!=null) {
       val hisSQL = new StringBuffer("select ")
@@ -41,22 +44,23 @@ class I2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
         if(index>0){
           hisSQL.append(" , ")
         }
-        hisSQL.append("f."+f.name)
+        hisSQL.append("h."+f.name)
         index+=1
       }
-      hisSQL.append(" from hisTB f left join incTB i on ")
+      hisSQL.append(",h."+this.beginDTName+" as fBeginDT,h."+this.endDTName+" as fEndDT,i."+primaryKeys(0).name+" as incKey from hisTB h left join incTB i on ")
       index=0
       for(p<-primaryKeys){
         if(index>0){
           hisSQL.append(" and ")
         }
-        hisSQL.append("f."+p.name+"=i."+p.name)
+        hisSQL.append("h."+p.name+"=i."+p.name)
       }
       history.registerTempTable("hisTB")
+      logger.info(MESSAGE_ID_CNV1001,"hisSQL: "+ hisSQL)
       val hisDF = sqlContext.sql(hisSQL.toString)
       hisDF.cache()
-      closeDF = hisDF.filter("i."+primaryKeys(0).name+" is not null ").selectExpr("*","f."+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName)
-      val stillOpenDF = hisDF.filter("i."+primaryKeys(0).name+" is null ").selectExpr("*","f."+this.beginDTName,"f."+this.endDTName)
+      closeDF = hisDF.filter("incKey is not null ").selectExpr("*","fBeginDT as "+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
+      val stillOpenDF = hisDF.filter("incKey is null ").selectExpr("*","fBeginDT as "+this.beginDTName,"fEndDT as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
       newOpen = newOpen.unionAll(stillOpenDF)
       hisDF.unpersist()
     }

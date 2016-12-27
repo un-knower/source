@@ -24,9 +24,13 @@ class CommonFieldValidatorContext() extends Serializable {
     validator.validate(fieldType, fieldValue)
   }
 
-  def validateField(iffField: IFFField, fieldValues: HashMap[String,Any]) = {
+  def validateField(iffField: IFFField, fieldValues:java.util.HashMap[String,Any]) = {
     val fieldType = iffField.typeInfo
-    val fieldValue = fieldValues.getOrElse(iffField.name, "").toString
+    var fieldValue = ""
+    val fieldValueTemp = fieldValues.get(iffField.name)
+    if(fieldValueTemp!=null){
+      fieldValue = fieldValueTemp.toString
+    }
     val normalCheck = fieldType match {
       case fieldType@IFFDate() => validate(fieldType, fieldValue)
       case fieldType@IFFTime() => validate(fieldType, fieldValue)
@@ -59,7 +63,7 @@ sealed trait CommonFieldWithValidator {
   protected val commonFieldValidatorContext: CommonFieldValidatorContext = null
   protected val iffField: IFFField = null
 
-  def validateField(fieldValue:HashMap[String,Any]) = {
+  def validateField(fieldValue:java.util.HashMap[String,Any]) = {
     commonFieldValidatorContext.validateField(iffField, fieldValue)
   }
 
