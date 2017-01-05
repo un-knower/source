@@ -1,11 +1,12 @@
 package com.boc.iff.load
 
-import java.util.concurrent.LinkedBlockingQueue
 
 import com.boc.iff.IFFConversion._
 import com.boc.iff.exception.{MaxErrorNumberException, RecordNumberErrorException}
-
 import org.apache.commons.lang3.StringUtils
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent._
 
 /**
   * @author www.birdiexx.com
@@ -13,35 +14,22 @@ import org.apache.commons.lang3.StringUtils
 class FixedConversionOnSparkJob
   extends BaseConversionOnSparkJob[BaseConversionOnSparkConfig] {
 
-  protected def createBlockPositionQueue(filePath:String): java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
+  protected def createBlockPositionQueue(filePath:String,conversionJob: ((Int, Long, Int,String)=>String)):String = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, iffFileInfo.recordLength + 1)
-    val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     logger.info("recordLength","recordLength"+iffFileInfo.recordLength)
     val recordBuffer = new Array[Byte](iffFileInfo.recordLength + iffConversionConfig.lengthOfLineEnd) //把换行符号也读入到缓冲byte
     var totalBlockReadBytesCount: Long = 0
     val iffFileInputStream = openIFFFileBufferedInputStream(filePath, fileGzipFlgMap(filePath), iffConversionConfig.readBufferSize)
     var blockIndex: Int = 0
     var endOfFile = false
-    var countLineNumber: Int = 0
-    val endOfFileStr = new StringBuffer()
-    var recordEnd = false
-    val validateRecNumFlag = if("Y".equals(iffConversionConfig.validateRecNumFlag))true else false
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
       var canRead = true
       while (canRead) {
         val length = iffFileInputStream.read(recordBuffer)
         if (length != -1) {
-          val lineStr = new String(recordBuffer, iffMetadata.sourceCharset)
-          //logger.info("lineStr","lineStr:"+lineStr)
-          if (lineStr.startsWith(iffConversionConfig.fileEOFPrefix) || recordEnd) {
-            recordEnd = true
-            endOfFileStr.append(lineStr)
-          } else {
-            currentBlockReadBytesCount += recordBuffer.length
-            countLineNumber += 1
-          }
+          currentBlockReadBytesCount += recordBuffer.length
           //当文件读完，或者已读取一个块大小的数据（若再读一行则超过块大小）的时候，跳出循环
         } else {
           endOfFile = true
@@ -50,25 +38,10 @@ class FixedConversionOnSparkJob
           canRead = false
         }
       }
-      val blockPosition: (Int, Long, Int) = (blockIndex, totalBlockReadBytesCount, currentBlockReadBytesCount)
-      logger.debug(MESSAGE_ID_CNV1001,
-        "Block Index: %-5d, Position: %-10d, Size: %-10d".format(blockPosition._1, blockPosition._2, blockPosition._3))
-      blockPositionQueue.put(blockPosition)
+      val conversionFuture = future { conversionJob(blockIndex, totalBlockReadBytesCount, currentBlockReadBytesCount,filePath) }
+      this.futureQueue.put(conversionFuture)
       totalBlockReadBytesCount += currentBlockReadBytesCount
       blockIndex += 1
-    }
-    if (validateRecNumFlag&&endOfFileStr.length() > 0) {
-      val lineSeq = StringUtils.splitByWholeSeparatorPreserveAllTokens(endOfFileStr.toString, iffConversionConfig.fileEOFPrefix)
-      for (s <- lineSeq) {
-        if (s.startsWith("RecNum")) {
-          var recNum = s.substring(("RecNum=").length, s.length - (iffConversionConfig.lengthOfLineEnd))
-          if(StringUtils.isNotEmpty(recNum))recNum=recNum.trim
-          if (recNum.toInt != countLineNumber) {
-            logger.error("file " + iffConversionConfig.filename + " number is not right " + recNum.toInt + countLineNumber, "file number is not right")
-            throw RecordNumberErrorException("file " + iffConversionConfig.filename + " record number is not right,Expect record number:"+ countLineNumber+" Actually record number:" + recNum.toInt )
-          }
-        }
-      }
     }
     try{
       iffFileInputStream.close()
@@ -77,9 +50,7 @@ class FixedConversionOnSparkJob
         e.printStackTrace()
         logger.error("iffFileInputStream close error","iffFileInputStream close error")
     }
-    logger.info("blockPositionQueue Info", "blockPositionQueueSize:"+blockPositionQueue.size())
-    blockPositionQueue
-
+    filePath
   }
 
   override protected def getDataFileProcessor(): DataFileProcessor = new FixDataFileProcessor

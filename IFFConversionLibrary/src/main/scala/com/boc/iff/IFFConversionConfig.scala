@@ -33,7 +33,7 @@ class IFFConversionConfig extends AppConfig {
   var fileMaxError: Long = 100                                               //最大文件错误条数
   var fileMaxBlank: Long = 0                                                 //文件最大空行数
   var lengthOfLineEnd: Int = 1                                               //文件系统类型
-  var validateRecNumFlag: String = "Y"                                              //文件记录数校验开关，Y为开启
+  var validateRecNumFlag: String = "Y"                                       //文件记录数校验开关，Y为开启
   var specialCharFilePath:String = ""                                          //特殊字符文件目录
   var specialCharConvertFlag:String = "N"                                     //特殊字符转换开关
   var iffNumberOfThread:Int = 0                                                //程序线程数
@@ -80,11 +80,9 @@ class IFFConversionConfig extends AppConfig {
       .text("DAT File Name")
       .foreach(this.filename = _)
     optionParser.opt[String]("db-name")
-      .required()
       .text("Database Name")
       .foreach { x=> this.dbName = x.toLowerCase }
     optionParser.opt[String]("i-table-name")
-      .required()
       .text("I Table Name")
       .foreach { x=> this.iTableName = x.toLowerCase }
     optionParser.opt[String]("auto-delete-target-dir")

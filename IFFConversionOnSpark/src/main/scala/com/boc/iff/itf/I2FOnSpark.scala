@@ -11,15 +11,16 @@ import scala.collection.mutable.ArrayBuffer
 class I2FOnSparkJob  extends DataProcessOnSparkJob with Serializable {
 
   override def processFile = {
-    println(this.dataProcessConfig.toString);
+    println(this.dataProcessConfig.toString)
     //删除dataProcessConfig.tempDir
     val fields: List[IFFField] = iffMetadata.getBody.fields
-    val tableFields = fields.filter(_.filter) //
+    val tableFields = fields.filter(!_.filter) //
     val primaryFields: List[IFFField] = fields.filter(_.primaryKey) //
     var pkPosition = ArrayBuffer[Int]()
     for (v <- primaryFields) {
       pkPosition += tableFields.indexOf(v)
     }
+    logger.info(MESSAGE_ID_CNV1001,pkPosition.mkString)
     val basePk2Map = (x: String) => {
       val rowData = x.split(this.fieldDelimiter)
       var key = ""

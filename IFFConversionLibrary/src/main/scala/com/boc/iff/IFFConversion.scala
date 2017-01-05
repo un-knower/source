@@ -426,7 +426,6 @@ trait IFFConversion[T<:IFFConversionConfig] {
           iffConversionConfig.dbName, iffConversionConfig.iTableName, iffConversionConfig.fTableName)
       }
     }*/
-
     if(dbManagers.nonEmpty){
       for(dbManager<-dbManagers){
         dbManager.patchIFFConversionConfig(iffConversionConfig)

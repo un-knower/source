@@ -1,12 +1,14 @@
 package com.boc.iff.load
 
 import java.io.{BufferedReader, InputStreamReader}
-import java.util.concurrent.LinkedBlockingQueue
 
 import com.boc.iff.IFFConversion._
 import com.boc.iff.exception._
 import com.boc.iff.IFFUtils
 import org.apache.commons.lang3.StringUtils
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent._
 
 /**
   * @author www.birdiexx.com
@@ -14,11 +16,9 @@ import org.apache.commons.lang3.StringUtils
 class UnfixedConversionOnSparkJob
   extends BaseConversionOnSparkJob[BaseConversionOnSparkConfig] {
 
-  protected def createBlockPositionQueue(filePath:String): java.util.concurrent.LinkedBlockingQueue[(Int, Long, Int)] = {
+  protected def createBlockPositionQueue(filePath:String,conversionJob: ((Int, Long, Int,String)=>String)):String = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(iffConversionConfig.blockSize, 0)
-    logger.info("blockSize","blockSize:"+blockSize)
-    val blockPositionQueue = new LinkedBlockingQueue[(Int, Long, Int)]()
     var totalBlockReadBytesCount: Long = 0
     val iffFileInputStream = openIFFFileBufferedInputStream(filePath, fileGzipFlgMap(filePath), iffConversionConfig.readBufferSize)
     var blockIndex: Int = 0
@@ -26,11 +26,8 @@ class UnfixedConversionOnSparkJob
     val br = new BufferedReader(new InputStreamReader(iffFileInputStream.asInstanceOf[java.io.InputStream],IFFUtils.getCharset(iffMetadata.sourceCharset)))
     var currentLineLength: Int = 0
     var countLineNumber: Int = 0
-    var blankLineNumber: Int = 0
-    val needCheckBlank: Boolean = if(iffConversionConfig.fileMaxBlank==0) false else true
+    var firstRow: Boolean =  true
 
-    logger.info("chartSet","chartSet"+iffMetadata.sourceCharset)
-    val validateRecNumFlag = if("Y".equals(iffConversionConfig.validateRecNumFlag))true else false
     while (!endOfFile) {
       var currentBlockReadBytesCount: Int = 0
       var canRead = true
@@ -38,56 +35,43 @@ class UnfixedConversionOnSparkJob
       while (canRead) {
         val lineStr = br.readLine()
         if(lineStr!=null){
-          if(lineStr.startsWith(iffConversionConfig.fileEOFPrefix)){
-            if(validateRecNumFlag&&lineStr.startsWith(iffConversionConfig.fileEOFPrefix+"RecNum")){
-              var recNum = lineStr.substring((iffConversionConfig.fileEOFPrefix+"RecNum=").length)
-              if(StringUtils.isNotEmpty(recNum))recNum=recNum.trim
-              if(recNum.toInt!=countLineNumber){
-                logger.error("file "+iffConversionConfig.filename+ " number is not right "+recNum.toInt+countLineNumber,"file number is not right")
-                throw RecordNumberErrorException("file " + iffConversionConfig.filename + " record number is not right,Expect record number:"+ countLineNumber+" Actually record number:" + recNum.toInt )
+          if(!lineStr.startsWith(iffConversionConfig.fileEOFPrefix)){
+            //. 检查记录的列数
+            if (firstRow) {
+              firstRow =  false
+              var lineSeq:Int = StringUtils.countMatches(lineStr,iffMetadata.srcSeparator)
+              if("N".endsWith(iffConversionConfig.dataLineEndWithSeparatorF)){
+                lineSeq+=1
+              }
+              if(lineSeq!= iffMetadata.body.getSourceLength) {
+                logger.error("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq + " iffMetadata.body" + iffMetadata.body.getSourceLength, "file number is not right")
+                throw RecordNotFixedException("file " + iffConversionConfig.filename + " record column number is not right,Expect record column number:"+ iffMetadata.body.getSourceLength+" Actually record column number:" + lineSeq)
               }
             }
-          }else {//. 检查记录是否空行
-            if (StringUtils.isEmpty(lineStr.trim)) {
-              blankLineNumber += 1
-              if (needCheckBlank && blankLineNumber > iffConversionConfig.fileMaxBlank) {
-                logger.error("file " + iffConversionConfig.filename + " blank number error :" + blankLineNumber + " iffMetadata.body" + iffMetadata.body.getSourceLength, "blank number error")
-                throw MaxBlankNumberException("File blank number is bigger than limited, File blank number:" + blankLineNumber + ", file blank number" + iffConversionConfig.fileMaxBlank)
-              }
+            //换行符号
+            currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length+iffConversionConfig.lengthOfLineEnd
+            // logger.info("block Info", "第" + blockIndex + "块" + currentLineLength+" data:="+lineStr)
+            if (endOfFile || (currentBlockReadBytesCount + currentLineLength) > blockSize) {
+              canRead = false
             } else {
-              //. 检查记录的列数
-              if (countLineNumber == 0 ) {
-                var lineSeq:Int = StringUtils.countMatches(lineStr,iffMetadata.srcSeparator)
-                if("N".endsWith(iffConversionConfig.dataLineEndWithSeparatorF)){
-                  lineSeq+=1
-                }
-                if(lineSeq!= iffMetadata.body.getSourceLength) {
-                  logger.error("file " + iffConversionConfig.filename + " record column error lineStr:" + lineSeq + " iffMetadata.body" + iffMetadata.body.getSourceLength, "file number is not right")
-                  throw RecordNotFixedException("file " + iffConversionConfig.filename + " record column number is not right,Expect record column number:"+ iffMetadata.body.getSourceLength+" Actually record column number:" + lineSeq)
-                }
-              }
-              //换行符号
-              currentLineLength = lineStr.getBytes(this.iffMetadata.sourceCharset).length+iffConversionConfig.lengthOfLineEnd
-              // logger.info("block Info", "第" + blockIndex + "块" + currentLineLength+" data:="+lineStr)
-              if (endOfFile || (currentBlockReadBytesCount + currentLineLength) > blockSize) {
-                canRead = false
-              } else {
-                currentBlockReadBytesCount += currentLineLength
-              }
-              countLineNumber += 1
+              currentBlockReadBytesCount += currentLineLength
             }
+            countLineNumber += 1
           }
         }else {
           endOfFile = true
           canRead = false
         }
       }
-      val blockPosition: (Int, Long, Int) = (blockIndex, totalBlockReadBytesCount, currentBlockReadBytesCount)
-      blockPositionQueue.put(blockPosition)
+
+      val bIndex = blockIndex
+      val totalSize = totalBlockReadBytesCount
+      val currentBlocksSize = currentBlockReadBytesCount
+      val conversionFuture = future { conversionJob(bIndex, totalSize, currentBlocksSize,filePath) }
+      this.futureQueue.put(conversionFuture)
       totalBlockReadBytesCount += currentBlockReadBytesCount
       blockIndex += 1
     }
-    logger.info("blockPositionQueue Info", "blockPositionQueueSize:"+blockPositionQueue.size())
     try{
       br.close()
     }catch {
@@ -102,8 +86,9 @@ class UnfixedConversionOnSparkJob
         e.printStackTrace()
         logger.error("iffFileInputStream close error","iffFileInputStream close error")
     }
-    blockPositionQueue
+    filePath
   }
+
   protected def getDataFileProcessor():DataFileProcessor={
     new UnfixDataFileProcessor
   }

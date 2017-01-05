@@ -69,6 +69,7 @@ class I2FWithDataFrameOnSparkJob
 
 /**
  * Spark 程序入口
+ *
   * @author www.birdiexx.com
  */
 object I2FWithDataFrameOnSparkJob extends App {

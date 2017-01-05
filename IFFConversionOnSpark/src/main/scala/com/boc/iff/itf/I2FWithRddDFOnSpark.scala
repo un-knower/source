@@ -4,6 +4,8 @@ import java.util
 
 import com.boc.iff.DFSUtils
 import com.boc.iff.IFFConversion._
+import com.boc.iff.exception.PrimaryKeyMissException
+import com.boc.iff.itf.DataProcessOnSparkJob
 import com.boc.iff.model._
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -19,8 +21,11 @@ class I2FWithRddDFOnSparkJob  extends DataProcessOnSparkJob with Serializable {
 
     //删除dataProcessConfig.tempDir
     val fields: List[IFFField] = iffMetadata.getBody.fields
-    val tableFields = fields.filter(_.filter)  //
+    val tableFields = fields.filter(!_.filter)  //
     val primaryFields :List[IFFField]= fields.filter(_.primaryKey) //
+    if(primaryFields==null||primaryFields.size==0){
+      throw PrimaryKeyMissException("Primary Key of table"+dataProcessConfig.fTableName+" is required")
+    }
     var pkPosition = ArrayBuffer[Int]()
     for(v<-primaryFields){
       pkPosition +=tableFields.indexOf(v)
