@@ -23,13 +23,13 @@ class HiveDBManager(prefix: String, config: Properties)
   override def patchIFFConversionConfig(iffConversionConfig: IFFConversionConfig,
                                         dbName: String,
                                         iTableName: String): Unit = {
-    val iTable =getDBTable(iffConversionConfig.dbName, iffConversionConfig.iTableName)
-    if (StringUtils.isEmpty(iffConversionConfig.datFileOutputPath)) {
+    if (StringUtils.isEmpty(iffConversionConfig.datFileOutputPath)&&StringUtils.isNotEmpty(iffConversionConfig.iTableName)) {
+      val iTable =getDBTable(iffConversionConfig.dbName, iffConversionConfig.iTableName)
       iffConversionConfig.datFileOutputPath = iTable.location
     }
     if(iffConversionConfig.isInstanceOf[DataProcessConfig]){
       val config = iffConversionConfig.asInstanceOf[DataProcessConfig]
-      config.iTableDatFilePath = iTable.location
+      config.iTableDatFilePath = iffConversionConfig.datFileOutputPath
       val fTable =getDBTable(config.dbName, config.fTableName)
       config.fTableDatFilePath = fTable.location
     }

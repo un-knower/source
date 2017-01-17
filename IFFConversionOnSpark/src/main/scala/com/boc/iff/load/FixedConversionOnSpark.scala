@@ -38,7 +38,11 @@ class FixedConversionOnSparkJob
           canRead = false
         }
       }
-      val conversionFuture = future { conversionJob(blockIndex, totalBlockReadBytesCount, currentBlockReadBytesCount,filePath) }
+
+      val bIndex = blockIndex
+      val totalSize = totalBlockReadBytesCount
+      val currentBlocksSize = currentBlockReadBytesCount
+      val conversionFuture = future { conversionJob(bIndex, totalSize, currentBlocksSize,filePath) }
       this.futureQueue.put(conversionFuture)
       totalBlockReadBytesCount += currentBlockReadBytesCount
       blockIndex += 1

@@ -63,7 +63,7 @@ class UnfixedConversionOnSparkJob
           canRead = false
         }
       }
-
+      println("*************************countLineNumber:"+countLineNumber)
       val bIndex = blockIndex
       val totalSize = totalBlockReadBytesCount
       val currentBlocksSize = currentBlockReadBytesCount
@@ -99,7 +99,7 @@ class UnfixedConversionOnSparkJob
   */
 object UnfixedConversionOnSpark extends App{
   val config = new BaseConversionOnSparkConfig()
-  val job = new UnfixedConversionOnSparkJob() with ParquetConversionOnSparkJob[BaseConversionOnSparkConfig]
+  val job = new UnfixedConversionOnSparkJob()
   val logger = job.logger
   try {
     job.start(config, args)

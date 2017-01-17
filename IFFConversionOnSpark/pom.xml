@@ -110,79 +110,7 @@
                 </executions>
             </plugin>
 
-            <plugin>
-                <groupId>com.github.wvengen</groupId>
-                <artifactId>proguard-maven-plugin</artifactId>
-                <version>2.0.11</version>
-                <executions>
-                    <execution>
-
-                        <phase>package</phase>
-                        <goals>
-
-                            <goal>proguard</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-
-                    <obfuscate>true</obfuscate>
-
-                    <options>
-                        <option>-printmapping ${basedir}/proguard.mapping </option>
-                        <!-- <option>-applymapping ${basedir}/proguard.mapping </option> -->
-                        <option>-dontskipnonpubliclibraryclassmembers</option>
-                        <option>-dontshrink</option>
-                        <option>-dontoptimize</option>
-                        <option>-useuniqueclassmembernames</option>
-                        <option>-keeppackagenames</option>
-                        <option>-keepattributes Exceptions,InnerClasses,Signature,Deprecated,SourceFile,LineNumberTable,LocalVariable*Table,*Annotation*,Synthetic,EnclosingMethod</option>
-                        <!--<option>-keepparameternames</option>-->
-                        <option>-dontpreverify</option>
-                        <option>-dontwarn</option>
-                        <option>-ignorewarnings</option>
-                        <option>-keepdirectories</option>
-                        <option>-keepnames class * implements java.io.Serializable</option>
-                        <option>-keep class * implements java.io.Serializable { *; }</option>
-                        <option>-keep @org.springframework.stereotype.Component class *</option>
-                        <option>-keep @org.springframework.stereotype.Controller class *</option>
-                        <option>-keep @org.springframework.stereotype.Service class *</option>
-                        <option>-keep @org.springframework.stereotype.Repository class *</option>
-                        <option>-keepclassmembers class * {
-                            @org.springframework.beans.factory.annotation.Autowired *;
-                            @org.springframework.beans.factory.annotation.Value *;
-                            }</option>
-                        <option>-keepclasseswithmembers,allowshrinking class * { native &lt;methods&gt;; }</option>
-                        <option>-keepclassmembers,allowshrinking class * {
-                            java.lang.Class class$(java.lang.String);
-                            java.lang.Class class$(java.lang.String,boolean);
-                            }</option>
-                        <option>-keep class !com.boc.iff.**, ** { *; }</option>
-                        <option>-keep class * implements com.boc.iff.SparkJob { *; }</option>
-                        <option>-keep class * extends com.boc.iff.SparkJob { *; }</option>
-                    </options>
-
-
-                    <libs>
-                        <lib>${java.home}/lib/rt.jar</lib>
-                        <lib>${java.home}/lib/jce.jar</lib>
-                        <lib>${java.home}/lib/security/local_policy.jar</lib>
-                        <lib>${java.home}/lib/security/US_export_policy.jar</lib>
-                        <lib>${java.home}/lib/ext/sunjce_provider.jar</lib>
-                    </libs>
-
-                    <injarNotExistsSkip>true</injarNotExistsSkip>
-                    <injar>${project.artifactId}-${project.version}-jar-with-dependencies.jar</injar>
-                    <outjar>${project.artifactId}-${project.version}-jar-with-dependencies-pg.jar</outjar>
-
-                    <outputDirectory>${project.build.directory}</outputDirectory>
-                    <exclusions>
-                        <exclusion>
-                            <groupId>*</groupId>
-                        </exclusion>
-                    </exclusions>
-                </configuration>
-            </plugin>
+            
 
         </plugins>
     </build>
@@ -297,6 +225,7 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_${spark.scala.version}</artifactId>
             <version>${spark.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
