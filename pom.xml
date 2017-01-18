@@ -10,6 +10,7 @@
     <modules>
         <module>IFFConversionLibrary</module>
         <module>IFFConversionOnSpark</module>
+        <module>StageOnSpark</module>
     </modules>
     <packaging>pom</packaging>
 
