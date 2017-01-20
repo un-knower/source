@@ -10,31 +10,14 @@ import scala.beans.BeanProperty
 class StageInfo extends Serializable {
 
   @BeanProperty
-  var sourceCharset: String = null
-
-
+  var stageName: String = null
   @BeanProperty
-  var targetSchema: String = null
-
+  var stageDesc: String = null
   @BeanProperty
-  var targetTable: String = null
-
+  var nextStageName: String = null
   @BeanProperty
-  var header: IFFSection = null
+  var inputTables:List[String] = null
 
-  @BeanProperty
-  var body: IFFSection = null
 
-  @BeanProperty
-  var footer: IFFSection = null
-
-  @BeanProperty
-  var srcSystem: String = null
-
-  @BeanProperty
-  var fixedLength: String = null
-
-  @BeanProperty
-  var srcSeparator: String = null
 
 }

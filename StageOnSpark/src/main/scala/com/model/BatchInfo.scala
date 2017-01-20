@@ -1,6 +1,6 @@
 package com.model
 
-import com.boc.iff.model.IFFSection
+import com.boc.iff.model.{IFFField, IFFSection}
 
 import scala.beans.BeanProperty
 
@@ -9,31 +9,7 @@ import scala.beans.BeanProperty
   */
 class BatchInfo extends Serializable {
 
-  @BeanProperty
-  var sourceCharset: String = null
-
-  @BeanProperty
-  var targetSchema: String = null
-
-  @BeanProperty
-  var targetTable: String = null
-
-  @BeanProperty
-  var header: IFFSection = null
-
-  @BeanProperty
-  var body: IFFSection = null
-
-  @BeanProperty
-  var footer: IFFSection = null
-
-  @BeanProperty
-  var srcSystem: String = null
-
-  @BeanProperty
-  var fixedLength: String = null
-
-  @BeanProperty
-  var srcSeparator: String = null
+  var tables: List[TableInfo] = Nil
+  var stages: List[StageInfo] = Nil
 
 }

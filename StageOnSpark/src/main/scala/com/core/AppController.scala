@@ -15,7 +15,7 @@ class AppController {
   }
 
   def findHandle(request: StageRequest) = {
-    import com.datahandle.HandleContext._
+    import HandleContext._
     request match {
       case request: SqlRequest2 => getHandle[SqlRequest2]()
       case request: SqlRequest1 => getHandle[SqlRequest1]()

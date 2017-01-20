@@ -15,13 +15,22 @@ import scala.collection.mutable
 class SparkJobConfig extends AppConfig{
 
   var configPath: String = ""
+  var metadataFilePath: String = ""                                         //XML 描述文件路径
+  var metadataFileEncoding: String = "UTF-8"                                //XML 描述文件编码
 
   override protected def makeOptions(optionParser: scopt.OptionParser[_]) = {
     super.makeOptions(optionParser)
     optionParser.opt[String]("configPath")
       .required()
       .text("ConfigPath")
-      .foreach { x=> this.configPath = x.toLowerCase }
+      .foreach { x=> this.configPath = x }
+    optionParser.opt[String]("metadata-file-path")
+      .required()
+      .text("Metadata File Path")
+      .foreach(this.metadataFilePath = _)
+    optionParser.opt[String]("metadata-file-encoding")
+      .text("Metadata File Encoding")
+      .foreach(this.metadataFileEncoding = _)
   }
 
   override def toString = {
