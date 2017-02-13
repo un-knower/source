@@ -42,11 +42,12 @@ class SimpleFileLoader extends FileLoader{
     val conversionJob: ((Int, Long, Int, String) => RDD[String]) = { (blockIndex, blockPosition, blockSize, filePath) =>
       val rdd = this.sparkContext.makeRDD(Seq((blockIndex, blockPosition, blockSize, filePath)), 1)
       rdd.mapPartitions(convertByPartitions)
+
     }
     createBlocks(conversionJob)
-    val targetRdd = rddQueue.take()
+    var targetRdd = rddQueue.take()
     while(!rddQueue.isEmpty){
-      targetRdd.union(rddQueue.take())
+      targetRdd = targetRdd.union(rddQueue.take())
     }
     changeRddToDataFrame(targetRdd.filter(x=>(!x.endsWith("ERROR"))))
   }

@@ -9,7 +9,7 @@ import com.core.AppController
   */
 object  MainTest {
     def main(args: Array[String]) {
-       val stageRequest=new FileStageRequest
+       val stageRequest=new FileSaveStageRequest
         val executeHandle = findHandle(stageRequest)
         implicit val context1 = new StageAppContext(null,null)
         executeHandle.doCommand(stageRequest)
@@ -19,7 +19,7 @@ object  MainTest {
         import HandleContext._
         request match {
             case request: SqlStageRequest => getHandle[SqlStageRequest]()
-            case request: FileStageRequest => getHandle[FileStageRequest]()
+            case request: FileSaveStageRequest => getHandle[FileSaveStageRequest]()
         }
     }
 

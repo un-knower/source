@@ -32,7 +32,6 @@ class SparkJobConfig extends AppConfig with Serializable{
       .text("Metadata File Path")
       .foreach(this.metadataFilePath = _)
     optionParser.opt[String]("temp-dir")
-      .required()
       .text("Temp Dir")
       .foreach(this.tempDir = _)
     optionParser.opt[String]("metadata-file-encoding")

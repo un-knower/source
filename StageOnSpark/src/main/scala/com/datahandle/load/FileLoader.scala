@@ -37,6 +37,7 @@ abstract class FileLoader extends Serializable{
     jobConfig = stageAppContext.jobConfig
     sqlContext = stageAppContext.sqlContext
     tableInfo = loadTableInfo(fileInfo)
+    this.fileInfo = fileInfo
 
     stageAppContext.tablesMap.put(tableInfo.targetName,tableInfo)
     val df = loadFile
@@ -46,7 +47,6 @@ abstract class FileLoader extends Serializable{
   def loadFile(): DataFrame
 
   protected def changeRddToDataFrame(rdd:RDD[String]): DataFrame ={
-    println("*********************** change RDD *****************************")
     val fieldDelimiter = this.fieldDelimiter
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
     val basePk2Map= (x:String) => {
@@ -61,11 +61,8 @@ abstract class FileLoader extends Serializable{
     for(f <- fields) {
       structFields.add(DataTypes.createStructField(f.name, DataTypes.StringType, true))
     }
-    println("*********************** going to change RDD *****************************")
     val structType = DataTypes.createStructType(structFields)
-    println("*********************** make new rdd *****************************")
     val rddN = rdd.map(basePk2Map)
-    println("*********************** create dataframe *****************************")
     sqlContext.createDataFrame(rddN,structType)
   }
 

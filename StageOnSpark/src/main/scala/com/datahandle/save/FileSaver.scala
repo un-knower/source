@@ -19,14 +19,16 @@ abstract class FileSaver extends Serializable{
   var jobConfig:SparkJobConfig = _
   var tableInfo:TableInfo = _
 
-  def load(inputTable:String,fileInfo:FileInfo,cleanTargetPath:Boolean)(implicit stageAppContext: StageAppContext): Unit ={
+  def save(inputTable:String,fileInfo:FileInfo,cleanTargetPath:Boolean)(implicit stageAppContext: StageAppContext): Unit ={
     sparkContext = stageAppContext.sparkContext
     tableInfo = stageAppContext.tablesMap.get(inputTable)
+    jobConfig = stageAppContext.jobConfig
     this.fileInfo = fileInfo
     val tmpPath = getTempPath(inputTable)
     val df = stageAppContext.getDataFrame(tableInfo)
     try{
       saveDataFrame(tmpPath,df)
+      if(cleanTargetPath)cleanPath(fileInfo.dataPath)
       saveToTargetPath(tmpPath,fileInfo.dataPath)
     }finally {
       implicit val hadoopConfig = sparkContext.hadoopConfiguration
@@ -44,7 +46,7 @@ abstract class FileSaver extends Serializable{
   }
 
   protected def getTempPath(inputTable:String):String={
-    "%s/%s".format(jobConfig.tempDir,tableInfo)
+    "%s/%s".format(jobConfig.tempDir,inputTable)
   }
 
   protected def saveToTargetPath(tempPath:String,targetPath:String):Unit={

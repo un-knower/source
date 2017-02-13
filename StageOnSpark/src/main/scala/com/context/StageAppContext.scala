@@ -36,7 +36,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
 
 
   def addDataSet(tableInfo:TableInfo,dataSet:DataFrame): Unit ={
-    //println("******Add DateSet:"+tableInfo.targetName+" rowCount:"+dataSet.count())
+    println("******Add DateSet:"+tableInfo.targetName+" rowCount:"+dataSet.count())
     dataSetObjectMap.put(tableInfo.targetName,dataSet)
   }
 

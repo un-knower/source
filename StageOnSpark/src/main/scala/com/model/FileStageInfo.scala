@@ -10,10 +10,9 @@ import scala.beans.BeanProperty
 class FileStageInfo extends StageInfo{
 
   object OperationType extends Enumeration {
-    type ValueType = Value
-    val READ = Value("READ")
-    val APPEND = Value("APPEND")
-    val OVERRIDE = Value("OVERRIDE")
+    val READ = "READ"
+    val APPEND = "APPEND"
+    val OVERRIDE = "OVERRIDE"
   }
 
   @BeanProperty
@@ -30,11 +29,13 @@ class FileStageInfo extends StageInfo{
       case OperationType.APPEND =>
         val request = new FileSaveStageRequest
         request.fileInfos = fileInfos
+        request.inputTables = this.inputTables
         request.cleanTargetPath = false
         request
       case OperationType.OVERRIDE =>
         val request = new FileSaveStageRequest
         request.fileInfos = fileInfos
+        request.inputTables = this.inputTables
         request.cleanTargetPath = true
         request
     }
