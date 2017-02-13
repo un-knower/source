@@ -510,7 +510,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       tempOutputDir
     }
     createBlocks(conversionJob)
-    //combineMutilFileToSingleFile(errorDir)
+    combineMutilFileToSingleFile(errorDir)
     if(iffConversionConfig.fileMaxError>0) {
       val errorRec = broadcast.value.foldLeft(0L)(_ + _)
       logger.info("errorRec", "errorRec:" + errorRec)
@@ -557,24 +557,20 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
       case FileMode.LOCAL=>
         val result = rdd.collect()
         println("**********************size:"+result.length)
-        var bw:BufferedWriter = null
+       // var bw:BufferedWriter = null
         var os:OutputStream = null
         try{
           os = new FileOutputStream(targetPath)
-          bw = new BufferedWriter(new OutputStreamWriter(os,"UTF-8"))
-          var writeSzie = 0
+          //bw = new BufferedWriter(new OutputStreamWriter(os,"UTF-8"))
+          var writeSize = 0
           for(line<-result){
-            bw.write(line+"\n")
-            writeSzie+=1
+            os.write((line+"\n").getBytes("UTF-8"))
+            //bw.write(line+"\n")
+            writeSize+=1
           }
-          println("**********************writeSzie:"+writeSzie)
+          println("**********************writeSize:"+writeSize)
         }catch{
           case e:Throwable =>
-            try{
-              if(bw!=null)bw.close()
-            }catch {
-              case e:Throwable =>
-            }
             try{
               if(os!=null)os.close()
             }catch {

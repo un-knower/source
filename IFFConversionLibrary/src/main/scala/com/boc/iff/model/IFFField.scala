@@ -50,6 +50,9 @@ class IFFField extends Serializable with AviatorExpressionProcessor {
   var expression: String = ""
 
   @BeanProperty
+  var fieldExpression: String = ""
+
+  @BeanProperty
   var formatSpec: FormatSpec = _
 
   @BeanProperty

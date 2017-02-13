@@ -1,7 +1,5 @@
 package com.model
 
-import com.boc.iff.model.{IFFField, IFFSection}
-
 import scala.beans.BeanProperty
 
 /**
@@ -9,7 +7,9 @@ import scala.beans.BeanProperty
   */
 class BatchInfo extends Serializable {
 
-  var tables: List[TableInfo] = Nil
-  var stages: List[StageInfo] = Nil
+  @BeanProperty
+  var batchJobName:String = ""
+  @BeanProperty
+  var stages: java.util.List[StageInfo] = _
 
 }

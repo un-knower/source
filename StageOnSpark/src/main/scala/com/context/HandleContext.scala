@@ -1,13 +1,14 @@
 package com.context
 
-import com.datahandle.{Sql1StageHandle, Sql2StageHandle, StageHandle}
+import com.datahandle._
 
 /**
   * Created by cvinc on 2016/6/8.
   */
 object HandleContext {
-    implicit object sql1 extends Sql1StageHandle[SqlRequest1]
-    implicit object sql2 extends Sql2StageHandle[SqlRequest2]
+    implicit object sqlStageHandle extends SqlStageHandle[SqlStageRequest]
+    implicit object fileReadStageHandle extends FileReadStageHandle[FileReadStageRequest]
+    implicit object fileSaveStageHandle extends FileSaveStageHandle[FileSaveStageRequest]
 
     def apply[T<:StageRequest](implicit handle: StageHandle[T]) = {
         handle

@@ -1,46 +1,31 @@
 package com.model
 
-import com.boc.iff.model.IFFSection
-import org.apache.spark.sql.DataFrame
+import com.boc.iff.model.IFFMetadata
 
 import scala.beans.BeanProperty
 
 /**
   * Created by scutlxj on 2017/1/20.
   */
-class TableInfo {
+class TableInfo extends IFFMetadata{
 
-  var loadFlag:Boolean = false
-
-  @BeanProperty
-  var sourceCharset: String = null
+  var cacheFlag:Boolean = false
 
   @BeanProperty
-  var sourceDataPath: String = null
+  var targetName: String = ""
 
   @BeanProperty
-  var sourceFileType: String = null
+  var dataLineEndWithSeparatorF:Boolean = false
 
   @BeanProperty
-  var targetName: String = null
+  var lengthOfLineEnd:Int = 1
 
   @BeanProperty
-  var srcSystem: String = null
+  var fileEOFPrefix:String = "|||||"
 
-  @BeanProperty
-  var fixedLength: String = null
 
-  @BeanProperty
-  var srcSeparator: String = null
 
-  @BeanProperty
-  var header: IFFSection = null
 
-  @BeanProperty
-  var body: IFFSection = null
-
-  @BeanProperty
-  var footer: IFFSection = null
 
 
 }

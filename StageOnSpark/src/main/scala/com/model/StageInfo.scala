@@ -1,22 +1,32 @@
 package com.model
 
-import com.boc.iff.model.IFFSection
+import java.util.List
+
+import com.context.{StageAppContext, StageRequest}
 
 import scala.beans.BeanProperty
 
 /**
   * Created by cvinc on 2016/6/8.
   */
-class StageInfo extends Serializable {
+abstract class StageInfo extends Serializable {
+
+
 
   @BeanProperty
-  var stageName: String = null
+  var stageId: String = ""
   @BeanProperty
-  var stageDesc: String = null
+  var stageDesc: String = ""
   @BeanProperty
-  var nextStageName: String = null
+  var nextStageId: String = ""
   @BeanProperty
-  var inputTables:List[String] = null
+  var stageType:String = ""
+  @BeanProperty
+  var inputTables:List[String] = _
+
+  def getStageRequest(implicit stageAppContext: StageAppContext):StageRequest
+
+
 
 
 
