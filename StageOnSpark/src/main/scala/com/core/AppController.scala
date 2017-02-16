@@ -15,6 +15,7 @@ class AppController {
       println("**************************handling stage["+stageInfo.stageId+"]**********************************")
       val request: StageRequest = stageInfo.getStageRequest
       val executeHandle = findHandle(request)
+      stageAppContext.currentStage = stageInfo
       executeHandle.doCommand(request)
       if(StringUtils.isNotEmpty(stageInfo.nextStageId)){
         stageInfo = stageAppContext.stagesMap.get(stageInfo.nextStageId)
@@ -27,9 +28,12 @@ class AppController {
   def findHandle(request: StageRequest) = {
     import HandleContext._
     request match {
-      case request: SqlStageRequest => getHandle[SqlStageRequest]()
       case request: FileReadStageRequest => getHandle[FileReadStageRequest]()
       case request: FileSaveStageRequest => getHandle[FileSaveStageRequest]()
+      case request: AggregateStageRequest => getHandle[AggregateStageRequest]()
+      case request: JoinStageRequest => getHandle[JoinStageRequest]()
+      case request: SortStageRequest => getHandle[SortStageRequest]()
+      case request: UnionStageRequest => getHandle[UnionStageRequest]()
     }
   }
 

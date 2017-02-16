@@ -64,8 +64,6 @@ class IFFField extends Serializable with AviatorExpressionProcessor {
   @BeanProperty
   var virtual: Boolean = false
 
-  @BeanProperty
-  var sqlExpress: String = ""
 
   def initExpression:Unit = if(StringUtils.isNotEmpty(expression))initExpression(expression)
 
@@ -93,7 +91,7 @@ class IFFField extends Serializable with AviatorExpressionProcessor {
     }
     sb ++= ("<property name=\"primaryKey\" value=\"" + (if (primaryKey) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"virtual\" value=\"" + (if (virtual) "true" else "false") + "\"/>")
-    sb ++= ("<property name=\"sqlExpress\" value=\"" + sqlExpress+ "\"/>")
+    sb ++= ("<property name=\"fieldExpression\" value=\"" + fieldExpression+ "\"/>")
     sb ++= "</bean>"
     sb.toString
   }

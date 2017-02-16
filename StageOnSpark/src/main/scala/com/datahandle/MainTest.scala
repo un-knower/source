@@ -18,7 +18,6 @@ object  MainTest {
     def findHandle(request: StageRequest) = {
         import HandleContext._
         request match {
-            case request: SqlStageRequest => getHandle[SqlStageRequest]()
             case request: FileSaveStageRequest => getHandle[FileSaveStageRequest]()
         }
     }

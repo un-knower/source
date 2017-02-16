@@ -21,7 +21,7 @@ abstract class FileSaver extends Serializable{
 
   def save(inputTable:String,fileInfo:FileInfo,cleanTargetPath:Boolean)(implicit stageAppContext: StageAppContext): Unit ={
     sparkContext = stageAppContext.sparkContext
-    tableInfo = stageAppContext.tablesMap.get(inputTable)
+    tableInfo = stageAppContext.getTable(inputTable)
     jobConfig = stageAppContext.jobConfig
     this.fileInfo = fileInfo
     val tmpPath = getTempPath(inputTable)

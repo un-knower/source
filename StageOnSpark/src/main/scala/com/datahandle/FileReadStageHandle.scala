@@ -3,6 +3,7 @@ package com.datahandle
 import com.context.{FileReadStageRequest, StageAppContext, StageRequest}
 import com.datahandle.load.{FileLoader, HiveFileLoader, ParquetFileLoader, SimpleFileLoader}
 import com.model.FileInfo
+import com.model.FileInfo.FileType
 
 /**
   * Created by scutlxj on 2017/2/9.
@@ -12,7 +13,7 @@ class FileReadStageHandle[T<:StageRequest] extends StageHandle[T] {
     val fileStageRequest = stRequest.asInstanceOf[FileReadStageRequest]
     for(index<-0 until fileStageRequest.fileInfos.size()){
       val fileInfo = fileStageRequest.fileInfos.get(index)
-      if(!appContext.tablesMap.containsKey(fileInfo.targetName)) {
+      if(!appContext.checkTableExist(fileInfo.targetName)) {
         this.getFileLoader(fileInfo).load(fileInfo)
       }
     }
@@ -21,8 +22,8 @@ class FileReadStageHandle[T<:StageRequest] extends StageHandle[T] {
 
   private def getFileLoader(fileInfo:FileInfo): FileLoader ={
     fileInfo.fileType match {
-      case "parquet" => new ParquetFileLoader
-      case "hive" => new HiveFileLoader
+      case FileType.PARQUET => new ParquetFileLoader
+      case FileType.HIVE  => new HiveFileLoader
       case _ => new SimpleFileLoader
     }
   }

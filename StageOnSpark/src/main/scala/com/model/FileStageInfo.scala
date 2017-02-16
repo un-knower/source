@@ -58,3 +58,12 @@ class FileInfo{
   @BeanProperty
   var targetSeparator:String = ""
 }
+
+object FileInfo{
+  object FileType extends Enumeration {
+    val HIVE = "HIVE"
+    val PARQUET = "PARQUET"
+    val UNFIXLENGTH = "UNFIXLENGTH"
+    val FIXLENGTH = "FIXLENGTH"
+  }
+}

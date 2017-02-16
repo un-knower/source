@@ -39,7 +39,7 @@ abstract class FileLoader extends Serializable{
     tableInfo = loadTableInfo(fileInfo)
     this.fileInfo = fileInfo
 
-    stageAppContext.tablesMap.put(tableInfo.targetName,tableInfo)
+    stageAppContext.addTable(tableInfo)
     val df = loadFile
     stageAppContext.addDataSet(tableInfo,df)
   }
@@ -96,6 +96,7 @@ abstract class FileLoader extends Serializable{
       tableInfo.header = appContext.getBean("header", iffSectionClass)
       tableInfo.body = appContext.getBean("body", iffSectionClass)
       tableInfo.footer = appContext.getBean("footer", iffSectionClass)
+      tableInfo.targetName = appContext.getBean("TargetTable").asInstanceOf[String]
     }
     catch {
       case e: BeansException =>
@@ -105,7 +106,7 @@ abstract class FileLoader extends Serializable{
         //logger.error(MESSAGE_ID_CNV1001, iffConversionConfig.metadataFilePath + " ClassNotFoundException.")
         throw e
     }
-    tableInfo.targetName = fileInfo.targetName
+    //tableInfo.targetName = fileInfo.targetName
     tableInfo
   }
 

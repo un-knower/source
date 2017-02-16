@@ -2,7 +2,7 @@ package com.model
 
 import java.util.List
 
-import com.context.{StageAppContext, StageRequest}
+import com.context._
 
 import scala.beans.BeanProperty
 
@@ -31,7 +31,23 @@ class SqlStageInfo extends StageInfo{
   var sorts:List[String] = _
 
   def getStageRequest(implicit stageAppContext: StageAppContext):StageRequest={
-    null
+    val sqlStageRequest:SqlStageRequest = stageType match {
+      case StageType.Aggregate => new AggregateStageRequest
+      case StageType.Join => new JoinStageRequest
+      case StageType.Sort => new SortStageRequest
+      case StageType.Transformer => new TransformerStageRequest
+      case StageType.Union => new UnionStageRequest
+    }
+    sqlStageRequest.outPutTable = this.outPutTable
+    sqlStageRequest.inputTables = this.inputTables
+    sqlStageRequest.sorts = this.sorts
+    sqlStageRequest.from = this.from
+    sqlStageRequest.stageId = this.stageId
+    sqlStageRequest.nextStageId = this.nextStageId
+    sqlStageRequest.groupBy = this.groupBy
+    sqlStageRequest.limitFilter = this.limitFilter
+    sqlStageRequest.logicFilter = this.logicFilter
+    sqlStageRequest
   }
 
 }

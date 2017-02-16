@@ -11,7 +11,14 @@ import scala.beans.BeanProperty
   */
 abstract class StageInfo extends Serializable {
 
-
+ protected object StageType extends Enumeration {
+    val File = "FILE"
+    val Aggregate = "AGGREGATE"
+    val Join = "JOIN"
+    val Sort = "SORT"
+    val Union = "UNION"
+    val Transformer = "TRANSFORMER"
+  }
 
   @BeanProperty
   var stageId: String = ""
