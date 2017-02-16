@@ -10,9 +10,13 @@ import org.apache.commons.lang3.StringUtils
 class AppController {
   def execute(context: StageAppContext) = {
     implicit val stageAppContext = context
+    val logBuilder = stageAppContext.constructLogBuilder()
+    logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
     var stageInfo = stageAppContext.fistStage
+    var finishStageNumber:Int = 0
+    val totalStageNumber:Int = stageAppContext.stagesMap.size()
     do{
-      println("**************************handling stage["+stageInfo.stageId+"]**********************************")
+      logBuilder.info("handling Stage["+stageInfo.stageId+"],Stage[Total:"+totalStageNumber+",Finish:"+finishStageNumber+"]")
       val request: StageRequest = stageInfo.getStageRequest
       val executeHandle = findHandle(request)
       stageAppContext.currentStage = stageInfo
@@ -22,6 +26,7 @@ class AppController {
       }else{
         stageInfo = null
       }
+      finishStageNumber+=1
     }while(stageInfo!=null)
   }
 

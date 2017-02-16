@@ -12,6 +12,7 @@ class SortStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
 
   override protected def handle(sqlStageRequest: SqlStageRequest): DataFrame = {
     if(sqlStageRequest.inputTables.size()>1){
+      logBuilder.error("Stage[%s]--SortStage can only set one inputTable".format(sqlStageRequest.stageId))
       throw StageInfoErrorException("Stage[%s]--SortStage can only set one inputTable".format(sqlStageRequest.stageId))
     }
     if(sqlStageRequest.outPutTable.body==null||sqlStageRequest.outPutTable.body.fields==null){

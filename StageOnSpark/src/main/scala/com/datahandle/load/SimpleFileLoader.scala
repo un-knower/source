@@ -9,6 +9,7 @@ import java.util.zip.GZIPInputStream
 import com.boc.iff._
 import com.boc.iff.exception.RecordNotFixedException
 import com.boc.iff.model.{CDecimal, CInteger, IFFField, IFFFileInfo}
+import com.model.FileInfo.FileType
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
@@ -295,13 +296,9 @@ class SimpleFileLoader extends FileLoader{
     dataFileProcessor.iFFFileInfo = iffFileInfo
 
 
-    val prop = new Properties()
-    prop.load(new FileInputStream(jobConfig.configPath))
+
     val convertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = { blockPositionIterator =>
       val recordList = ListBuffer[String]()
-      val logger = new ECCLogger()
-      logger.configure(prop)
-      logger.info("MSG","#####################################makePA")
       val charset = IFFUtils.getCharset(tableInfo.sourceCharset)
       dataFileProcessor.charset = charset
       val decoder = charset.newDecoder
@@ -427,7 +424,7 @@ class SimpleFileLoader extends FileLoader{
   private def getDataFileProcessor():DataFileProcessor={
     var dataFileProcessor:DataFileProcessor = null
     fileInfo.fileType match {
-      case "fixLength" => dataFileProcessor = new FixDataFileProcessor
+      case FileType.FIXLENGTH => dataFileProcessor = new FixDataFileProcessor
       case _ => dataFileProcessor = new UnfixDataFileProcessor
     }
     dataFileProcessor

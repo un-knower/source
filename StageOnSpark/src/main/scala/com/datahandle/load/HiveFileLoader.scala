@@ -8,9 +8,7 @@ import org.apache.spark.sql.DataFrame
 class HiveFileLoader extends FileLoader{
 
   def loadFile(): DataFrame = {
-    println("***********************load hive file *****************************")
     val targetRdd = this.sparkContext.textFile(this.fileInfo.dataPath)
-    println("***********************file"+targetRdd.count()+" *****************************")
     changeRddToDataFrame(targetRdd)
   }
 

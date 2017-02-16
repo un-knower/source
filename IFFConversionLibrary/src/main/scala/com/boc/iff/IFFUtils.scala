@@ -1,5 +1,6 @@
 package com.boc.iff
 
+import java.net.{InetAddress, UnknownHostException}
 import java.nio.charset.{Charset, CharsetDecoder, CodingErrorAction, UnsupportedCharsetException}
 import java.nio.{ByteBuffer, CharBuffer}
 import java.text.SimpleDateFormat
@@ -104,6 +105,22 @@ object IFFUtils {
   def dateToString(date:java.util.Date):String={
     val format:SimpleDateFormat = new SimpleDateFormat(IFFConversionConfig.ACCOUNT_DATE_PATTERN)
     return format.format(date)
+  }
+
+  def getHostName:String={
+    try {
+      return (InetAddress.getLocalHost()).getHostName();
+    } catch {
+      case e:UnknownHostException =>
+      val host = e.getMessage(); // host = "hostname: hostname"
+      if (host != null) {
+        val colon = host.indexOf(':');
+        if (colon > 0) {
+          return host.substring(0, colon);
+        }
+      }
+      return "UnknownHost";
+    }
   }
 
 }

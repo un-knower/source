@@ -2,6 +2,7 @@ package com.datahandle
 
 import com.boc.iff.exception.StageInfoErrorException
 import com.context.{SqlStageRequest, StageAppContext, StageRequest}
+import com.log.LogBuilder
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.DataFrame
 
@@ -10,11 +11,15 @@ import org.apache.spark.sql.DataFrame
   */
 class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
   var appContext:StageAppContext = _
+  var logBuilder:LogBuilder = _
 
   override def doCommand(stRequest: StageRequest)(implicit appContext:StageAppContext): Unit = {
     this.appContext = appContext
+    logBuilder = appContext.constructLogBuilder()
+    logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
     val sqlStageRequest = stRequest.asInstanceOf[SqlStageRequest]
     if(sqlStageRequest.inputTables==null||sqlStageRequest.inputTables.size()==0){
+      logBuilder.error("Stage[%s] -- inputTable required".format(sqlStageRequest.stageId))
       throw StageInfoErrorException("Stage[%s] -- inputTable required".format(sqlStageRequest.stageId))
     }
     var resultDF = handle(sqlStageRequest)
@@ -22,7 +27,6 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
     if(StringUtils.isNotEmpty(sqlStageRequest.logicFilter)){
       resultDF = resultDF.filter(sqlStageRequest.logicFilter)
     }
-
     //提取结果集数量
     if(sqlStageRequest.limitFilter>0){
       resultDF = resultDF.limit(sqlStageRequest.limitFilter)
@@ -60,6 +64,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       }
       sql.append(" order by ").append(sortStr)
     }
+    logBuilder.info("Stage Sql["+sql.toString+"]")
     sql.toString
   }
 

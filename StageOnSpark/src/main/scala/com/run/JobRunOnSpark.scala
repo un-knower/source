@@ -15,18 +15,6 @@ object JobRunOnSpark extends App{
   try {
     job.start(config, args)
   } catch {
-    case t:RecordNumberErrorException =>
-      t.printStackTrace()
-      System.exit(1)
-    case t:MaxErrorNumberException =>
-      t.printStackTrace()
-      System.exit(2)
-    case t:RecordNotFixedException =>
-      t.printStackTrace()
-      System.exit(3)
-    case t:MaxBlankNumberException =>
-      t.printStackTrace()
-      System.exit(4)
     case t: Throwable =>
       t.printStackTrace()
       //if(StringUtils.isNotEmpty(t.getMessage)) logger.error("", t.getMessage)

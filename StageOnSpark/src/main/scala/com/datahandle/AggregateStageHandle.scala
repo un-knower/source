@@ -11,6 +11,7 @@ import org.apache.spark.sql.DataFrame
 class AggregateStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
   override protected def handle(sqlStageRequest: SqlStageRequest): DataFrame = {
     if(sqlStageRequest.inputTables.size()>1){
+      logBuilder.error("Stage[%s]--AggregateStage can only set one inputTable ".format(sqlStageRequest.stageId))
       throw StageInfoErrorException("Stage[%s]--AggregateStage can only set one inputTable ".format(sqlStageRequest.stageId))
     }
     if(StringUtils.isEmpty(sqlStageRequest.from)){

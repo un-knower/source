@@ -5,6 +5,7 @@ import com.context.{FileSaveStageRequest, StageAppContext, StageRequest}
 import com.datahandle.load.{HiveFileLoader, ParquetFileLoader, SimpleFileLoader}
 import com.datahandle.save.{FileSaver, ParquetFileSaver, TextFileSaver}
 import com.model.FileInfo
+import com.model.FileInfo.FileType
 import org.apache.hadoop.conf.Configuration
 import org.apache.spark.SparkContext
 
@@ -25,7 +26,7 @@ class FileSaveStageHandle[T<:StageRequest] extends StageHandle[T] {
 
   private def getSaver(fileInfo:FileInfo):FileSaver={
     fileInfo.fileType match {
-      case "parquet" => new ParquetFileSaver
+      case FileType.PARQUET => new ParquetFileSaver
       case _ => new TextFileSaver
     }
   }

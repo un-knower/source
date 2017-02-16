@@ -1,11 +1,13 @@
 package com.core
 
-import java.io.File
+import java.io.{File, FileInputStream}
+import java.util.Properties
 
 import com.boc.iff._
 import com.boc.iff.model._
 import com.config.SparkJobConfig
 import com.context.StageAppContext
+import com.log.LogBuilder
 import com.model.BatchInfo
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
@@ -23,20 +25,20 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
   var jobConfig:T = _
   var appContext:StageAppContext = _
   var batchInfo:BatchInfo = _
+  var logBuilder:LogBuilder = _
   /**
    * 执行整个作业
    */
   protected def run(jobonfig: T): Unit = {
     if(!prepare()) return
-    println("**************************prepare Success**********************************")
     val controller = new AppController
     controller.execute(appContext)
-//
-//    excutor()
-//    logger.info(MESSAGE_ID_CNV1001, "File Conversion Complete! File: " + iffConversionConfig.iffFileInputPath)
   }
 
   def prepare():Boolean = {
+    appContext = new StageAppContext(sparkContext,jobConfig)
+    logBuilder = appContext.constructLogBuilder()
+    logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
     loadMetadata(jobConfig.metadataFilePath,jobConfig.metadataFileEncoding)
     appContext = new StageAppContext(sparkContext,jobConfig)
     if(batchInfo.stages!=null){
@@ -47,6 +49,7 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
       }
     }
     if(jobConfig.iffNumberOfThread>0) {
+      logBuilder.info("Set thread numbers["+jobConfig.iffNumberOfThread+"]")
       System.setProperty("scala.concurrent.context.minThreads", String.valueOf(jobConfig.iffNumberOfThread))
       System.setProperty("scala.concurrent.context.numThreads", String.valueOf(jobConfig.iffNumberOfThread))
       System.setProperty("scala.concurrent.context.maxThreads", String.valueOf(jobConfig.iffNumberOfThread))
@@ -62,6 +65,7 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
     * @param encoding         XML 元数据文件编码
     */
   protected def loadMetadata(metadataFileName: String, encoding: String): Unit = {
+    logBuilder.info("loadMetadata "+ metadataFileName)
     val metadataFile = new File(metadataFileName)
     var metadataXml = FileUtils.readFileToString(metadataFile, encoding)
     metadataXml = StringUtils.replace(metadataXml, "com.boc.oms.model.", "com.boc.iff.model.")
@@ -71,17 +75,17 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
     appContext.setValidating(false)
     appContext.load(metadataXmlResource)
     appContext.refresh()
-
     try {
       val batchClass = classOf[BatchInfo]
        batchInfo = appContext.getBean("batchInfo", batchClass)
+      logBuilder.info("loadMetadata "+ metadataFileName+" Success")
     }
     catch {
       case e: BeansException =>
-        //logger.error(MESSAGE_ID_CNV1001, metadataFileName + " BeansException.")
+        logBuilder.error(metadataFileName + " BeansException.")
         throw e
       case e: ClassNotFoundException =>
-        //logger.error(MESSAGE_ID_CNV1001, metadataFileName + " ClassNotFoundException.")
+        logBuilder.error(metadataFileName + " ClassNotFoundException.")
         throw e
     }
   }

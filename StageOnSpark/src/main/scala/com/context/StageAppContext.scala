@@ -1,13 +1,15 @@
 package com.context
 
+import java.io.FileInputStream
 import java.util.concurrent.ConcurrentHashMap
-import java.util.HashMap
+import java.util.{HashMap, Properties}
 
+import com.boc.iff.ECCLogger
 import com.boc.iff.exception.TableLoadException
 import com.config.SparkJobConfig
+import com.log.LogBuilder
 import com.model.{StageInfo, TableInfo}
 import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, SQLContext}
 
 
@@ -15,6 +17,14 @@ import org.apache.spark.sql.{DataFrame, SQLContext}
   * Created by cvinc on 2016/6/8.
   */
 class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig)  {
+
+  private val logger:ECCLogger = {
+    val prop = new Properties
+    prop.load(new FileInputStream(jobConfig.configPath))
+    val logger = new ECCLogger()
+    logger.configure(prop)
+    logger
+  }
 
   var currentStage:StageInfo = _
 
@@ -69,6 +79,11 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
   def addDataSet(tableInfo:TableInfo,dataSet:DataFrame): Unit ={
     dataSetObjectMap.put(tableInfo.targetName,dataSet)
     dataSet.registerTempTable(tableInfo.targetName)
+  }
+
+  def constructLogBuilder():LogBuilder={
+    val logBuilder = new LogBuilder(logger)
+    logBuilder.setLogJobID(sparkContext.applicationId)
   }
 
 

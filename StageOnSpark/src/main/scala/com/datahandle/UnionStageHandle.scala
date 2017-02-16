@@ -11,6 +11,7 @@ import org.apache.spark.sql.DataFrame
 class UnionStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
   override protected def handle(sqlStageRequest: SqlStageRequest): DataFrame = {
     if(sqlStageRequest.inputTables.size()<2){
+      logBuilder.error("Stage[%s]--UnionStage inputTable number must be more than two".format(sqlStageRequest.stageId))
       throw StageInfoErrorException("Stage[%s]--UnionStage inputTable number must be more than two".format(sqlStageRequest.stageId))
     }
     if(sqlStageRequest.outPutTable.body==null||sqlStageRequest.outPutTable.body.fields==null){
