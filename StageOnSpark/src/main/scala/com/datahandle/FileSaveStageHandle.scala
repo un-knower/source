@@ -14,7 +14,7 @@ import org.apache.spark.SparkContext
   */
 class FileSaveStageHandle[T<:StageRequest] extends StageHandle[T] {
 
-  override def doCommand(stRequest: StageRequest): Unit = {
+  override def execute(stRequest: StageRequest): Unit = {
     val fileStageRequest = stRequest.asInstanceOf[FileSaveStageRequest]
     implicit val context:StageAppContext = appContext
     for(index<-0 until fileStageRequest.inputTables.size()){

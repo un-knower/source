@@ -45,9 +45,9 @@ class SparkJobConfig extends AppConfig with Serializable{
     optionParser.opt[Int]("iff-number-of-thread")
       .text("iffNumberOfThread")
       .foreach(this.iffNumberOfThread = _)
-    optionParser.opt[Int]("debug")
+    optionParser.opt[String]("debug")
       .text("debug")
-      .foreach(x=>if("Y".equals(x))true else false)
+      .foreach(x=>debug=if("Y".equals(x))true else false)
   }
 
   override def toString = {

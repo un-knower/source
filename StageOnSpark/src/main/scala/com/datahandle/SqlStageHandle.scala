@@ -12,10 +12,7 @@ import org.apache.spark.sql.DataFrame
 class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
 
 
-  override def doCommand(stRequest: StageRequest): Unit = {
-    this.appContext = appContext
-    logBuilder = appContext.constructLogBuilder()
-    logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
+  override def execute(stRequest: StageRequest): Unit = {
     val sqlStageRequest = stRequest.asInstanceOf[SqlStageRequest]
     if(sqlStageRequest.inputTables==null||sqlStageRequest.inputTables.size()==0){
       logBuilder.error("Stage[%s] -- inputTable required".format(sqlStageRequest.stageId))
@@ -29,6 +26,12 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
     //提取结果集数量
     if(sqlStageRequest.limitFilter>0){
       resultDF = resultDF.limit(sqlStageRequest.limitFilter)
+    }
+    if(appContext.jobConfig.debug&&sqlStageRequest.debugInfo!=null){
+      if(StringUtils.isEmpty(sqlStageRequest.debugInfo.file)){
+        sqlStageRequest.debugInfo.file = "%s/%s/%s".format(appContext.jobConfig.defaultDebugFilePath,appContext.sparkContext.applicationId,sqlStageRequest.stageId)
+      }
+      saveDebug(sqlStageRequest.debugInfo,resultDF)
     }
     appContext.addDataSet(sqlStageRequest.outPutTable,resultDF)
     appContext.addTable(sqlStageRequest.outPutTable)

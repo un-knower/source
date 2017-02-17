@@ -3,8 +3,12 @@ package com.datahandle
 import com.context.{StageAppContext, StageRequest}
 import com.log.LogBuilder
 import com.model.DebugInfo
+import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
+import org.apache.hadoop.io.IOUtils
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row}
+
+import scala.collection.mutable
 
 /**
   * Created by cvinc on 2016/6/8.
@@ -13,12 +17,12 @@ trait StageHandle[T<:StageRequest] {
     var appContext:StageAppContext = _
     var logBuilder:LogBuilder = _
 
-    def execute(stRequest:StageRequest)(implicit  context:StageAppContext): Unit={
+    def doCommand(stRequest:StageRequest)(implicit  context:StageAppContext): Unit={
         appContext = context
         logBuilder = appContext.constructLogBuilder().setLogThreadID(Thread.currentThread().getId.toString)
-        doCommand(stRequest)
+        execute(stRequest)
     }
-    def doCommand(stRequest:StageRequest): Unit
+    def execute(stRequest:StageRequest): Unit
 
     protected def saveDebug(debugInfo:DebugInfo,df:DataFrame):Unit={
         val newDF = df.limit(debugInfo.limit)
@@ -38,14 +42,40 @@ trait StageHandle[T<:StageRequest] {
         }
         val rdd = newDF.rdd.map(rowToString)
         rdd.saveAsTextFile(debugInfo.file)
+        combine(debugInfo)
     }
 
-    protected def saveDebug(debugInfo:DebugInfo,rdd:RDD):Unit={
-        rdd.saveAsTextFile(debugInfo.file)
-    }
-
-    protected def combin(debugInfo:DebugInfo,rdd:RDD):Unit={
-        rdd.saveAsTextFile(debugInfo.file)
+    protected def combine(debugInfo:DebugInfo):Unit={
+        val fileSystem = FileSystem.get(appContext.sparkContext.hadoopConfiguration)
+        val sourceFilePath = new Path(debugInfo.file)
+        if(fileSystem.exists(sourceFilePath)) {
+            val target = "%s/%s".format(debugInfo.file, "TARGET")
+            val targetFilePath = new Path(target)
+            val out = fileSystem.create(targetFilePath)
+            val fileStatus = fileSystem.getFileStatus(sourceFilePath)
+            val fileStatusStrack: mutable.Stack[FileStatus] = new mutable.Stack[FileStatus]()
+            fileStatusStrack.push(fileStatus)
+            while (!fileStatusStrack.isEmpty) {
+                val fst = fileStatusStrack.pop()
+                if (fst.isDirectory) {
+                    val fileStatusS = fileSystem.listStatus(fst.getPath)
+                    for (f <- fileStatusS) {
+                        fileStatusStrack.push(f)
+                    }
+                } else {
+                    val in = fileSystem.open(fst.getPath)
+                    IOUtils.copyBytes(in, out, 4096, false)
+                    in.close(); //完成后，关闭当前文件输入流
+                }
+            }
+            out.close();
+            val files = fileSystem.listStatus(sourceFilePath)
+            for (f <- files) {
+                if (!f.getPath.toString.endsWith("TARGET")) {
+                    fileSystem.delete(f.getPath, true)
+                }
+            }
+        }
     }
 
 
