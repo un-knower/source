@@ -9,7 +9,7 @@ import com.model.FileInfo.FileType
   * Created by scutlxj on 2017/2/9.
   */
 class FileReadStageHandle[T<:StageRequest] extends StageHandle[T] {
-  override def doCommand(stRequest: StageRequest)(implicit appContext:StageAppContext): Unit = {
+  override def doCommand(stRequest: StageRequest): Unit = {
     val fileStageRequest = stRequest.asInstanceOf[FileReadStageRequest]
     for(index<-0 until fileStageRequest.fileInfos.size()){
       val fileInfo = fileStageRequest.fileInfos.get(index)

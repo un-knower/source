@@ -21,7 +21,7 @@ class FileStageInfo extends StageInfo{
   var fileInfos:java.util.List[FileInfo] = _
 
   def getStageRequest(implicit stageAppContext: StageAppContext):StageRequest={
-    operationType match {
+    val stageRequest = operationType match {
       case OperationType.READ =>
         val request = new FileReadStageRequest
         request.fileInfos = fileInfos
@@ -39,7 +39,8 @@ class FileStageInfo extends StageInfo{
         request.cleanTargetPath = true
         request
     }
-
+    stageRequest.debugInfo = debugInfo
+    stageRequest
   }
 
 }

@@ -10,10 +10,9 @@ import org.apache.spark.sql.DataFrame
   * Created by cvinc on 2016/6/8.
   */
 class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
-  var appContext:StageAppContext = _
-  var logBuilder:LogBuilder = _
 
-  override def doCommand(stRequest: StageRequest)(implicit appContext:StageAppContext): Unit = {
+
+  override def doCommand(stRequest: StageRequest): Unit = {
     this.appContext = appContext
     logBuilder = appContext.constructLogBuilder()
     logBuilder.setLogThreadID(Thread.currentThread().getId.toString)

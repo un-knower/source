@@ -3,6 +3,7 @@ package com.model
 import java.util.List
 
 import com.context._
+import com.model.StageInfo.StageType
 
 import scala.beans.BeanProperty
 
@@ -47,6 +48,7 @@ class SqlStageInfo extends StageInfo{
     sqlStageRequest.groupBy = this.groupBy
     sqlStageRequest.limitFilter = this.limitFilter
     sqlStageRequest.logicFilter = this.logicFilter
+    sqlStageRequest.debugInfo = debugInfo
     sqlStageRequest
   }
 

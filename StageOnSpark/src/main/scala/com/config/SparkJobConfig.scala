@@ -20,6 +20,8 @@ class SparkJobConfig extends AppConfig with Serializable{
   var blockSize: Int = 200 * 1024 * 1024                                   //每次读取文件的块大小, 默认 200M
   var iffNumberOfThread:Int = 0                                                //程序线程数
   var tempDir:String = "/tmp/birdie/sparklet"                                                //程序线程数
+  var debug:Boolean = false
+  var defaultDebugFilePath:String = "/tmp/birdie/sparklet/debug"                                                //程序线程数
 
   override protected def makeOptions(optionParser: scopt.OptionParser[_]) = {
     super.makeOptions(optionParser)
@@ -43,6 +45,9 @@ class SparkJobConfig extends AppConfig with Serializable{
     optionParser.opt[Int]("iff-number-of-thread")
       .text("iffNumberOfThread")
       .foreach(this.iffNumberOfThread = _)
+    optionParser.opt[Int]("debug")
+      .text("debug")
+      .foreach(x=>if("Y".equals(x))true else false)
   }
 
   override def toString = {

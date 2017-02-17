@@ -14,11 +14,13 @@ import org.apache.spark.SparkContext
   */
 class FileSaveStageHandle[T<:StageRequest] extends StageHandle[T] {
 
-  override def doCommand(stRequest: StageRequest)(implicit appContext:StageAppContext): Unit = {
+  override def doCommand(stRequest: StageRequest): Unit = {
     val fileStageRequest = stRequest.asInstanceOf[FileSaveStageRequest]
+    implicit val context:StageAppContext = appContext
     for(index<-0 until fileStageRequest.inputTables.size()){
       val tableName = fileStageRequest.inputTables.get(index)
       val fileInfo = fileStageRequest.fileInfos.get(index)
+      logBuilder.info("Save Table[%s] to File[%s]".format(tableName,fileInfo.dataPath))
       val saver = getSaver(fileInfo)
       saver.save(tableName,fileInfo,fileStageRequest.cleanTargetPath)
     }
