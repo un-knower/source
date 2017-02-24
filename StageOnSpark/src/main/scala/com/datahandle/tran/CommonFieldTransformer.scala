@@ -1,138 +1,74 @@
 package com.datahandle.tran
 
-import java.text.SimpleDateFormat
+import java.text.{DecimalFormat, SimpleDateFormat}
+import java.util.Date
+import java.lang.Double
 
-import com.boc.iff.model._
+import com.boc.iff.exception.StageInfoErrorException
 import org.apache.commons.lang3.StringUtils
 
 /**
   * Created by scutlxj on 2017/2/22.
   */
 @annotation.implicitNotFound(msg = "No implicit CommonFieldTransformer defined for ${T}.")
-sealed trait CommonFieldTransformer[T<:IFFFieldType]  {
+sealed trait CommonFieldTransformer[T<:Any]  {
 
-  def toChar(fieldType: T, fieldValue: String):String={fieldValue}
-
-  def toObject(fieldType: T, fieldValue: String):Any={fieldValue}
+  def to_char (fieldValue: T,pattern:String):String={fieldValue.toString}
+  def to_date(fieldValue:T , pattern: String):Date={
+    throw new StageInfoErrorException("to_date function pattern type not right")
+  }
 
 }
 
 object CommonFieldTransformer {
-  trait CStringFieldTransformer extends CommonFieldTransformer[CString] {
-    override def toChar(fieldType: CString,fieldValue: String) = {
-      "CString"
+  trait StringFieldTransformer extends CommonFieldTransformer[String]{
+    override def to_date(fieldValue:String , pattern: String):Date={
+      val format = new SimpleDateFormat(pattern)
+      format.parse(fieldValue)
     }
-
   }
-  implicit object CStringTransformField extends CStringFieldTransformer
+  implicit object StringTransformField extends StringFieldTransformer
 
 
 
-  trait CDecimalFieldTransformer extends CommonFieldTransformer[CDecimal] {
-
-    override def toChar(fieldType: CDecimal,fieldValue: String) = {
-      "CDecimal"
-    }
-
-    override def toObject(fieldType: CDecimal, fieldValue: String):Any={fieldValue.toDouble}
-  }
-  implicit object CDecimalTransformField extends CDecimalFieldTransformer
-
-  trait CIntegerFieldTransformer extends CommonFieldTransformer[CInteger] {
-    override def toChar(fieldType: CInteger, fieldValue: String) = {
-      "CInteger"
-    }
-
-    override def toObject(fieldType: CInteger, fieldValue: String):Any={fieldValue.toInt}
-  }
-  implicit object CIntegerTransformField extends CIntegerFieldTransformer
-
-  trait CDateFieldTransformer extends CommonFieldTransformer[CDate] {
-    override def toChar(fieldType: CDate,fieldValue: String) = {
-      "CDate"
-    }
-
-    override def toObject(fieldType: CDate, fieldValue: String):Any={
-      if(fieldType.formatSpec!=null){
-        fieldType.formatSpec.getFormatObj.format(fieldValue)
+  trait DecimalFieldTransformer extends CommonFieldTransformer[Double] {
+    override def to_char (fieldValue: Double,pattern:String):String={
+      if(StringUtils.isNotEmpty(pattern)) {
+        val format = new DecimalFormat(pattern)
+        format.format(fieldValue)
       }else{
-        val pattern = if(StringUtils.isNotEmpty(fieldType.pattern))fieldType.pattern else "yyyyMMdd"
+        fieldValue.toString
+      }
+    }
+
+  }
+  implicit object DecimalTransformField extends DecimalFieldTransformer
+
+  trait IntegerFieldTransformer extends CommonFieldTransformer[Integer] {
+    override def to_char (fieldValue: Integer,pattern:String):String={
+      if(StringUtils.isNotEmpty(pattern)) {
         val format = new SimpleDateFormat(pattern)
-        format.parse(fieldValue)
+        format.format(fieldValue)
+      }else{
+        fieldValue.toString
       }
     }
   }
-  implicit object CDateTransformField extends CDateFieldTransformer
+  implicit object IntegerTransformField extends IntegerFieldTransformer
 
-  trait CTimeFieldTransformer extends CommonFieldTransformer[CTime] {
-    override def toChar(fieldType: CTime,fieldValue: String) = {
-      "CTime"
+  trait DateFieldTransformer extends CommonFieldTransformer[Date] {
+    override def to_char(fieldValue: Date,pattern:String) = {
+      if(StringUtils.isNotEmpty(pattern)) {
+        val format = new SimpleDateFormat(pattern)
+        format.format(fieldValue)
+      }else{
+        fieldValue.toString
+      }
     }
   }
-  implicit object CTimeTransformField extends CTimeFieldTransformer
+  implicit object DateTransformField extends DateFieldTransformer
 
-
-  trait CTimestampFieldTransformer extends CommonFieldTransformer[CTimestamp] {
-    override def toChar(fieldType: CTimestamp,fieldValue: String) = {
-      "CTimestamp"
-
-    }
-  }
-  implicit object CTimestampTransformField extends CTimestampFieldTransformer
-
-  trait IFFDateFieldTransformer extends CommonFieldTransformer[IFFDate]
-  implicit object IFFDateTransformField extends IFFDateFieldTransformer
-
-
-
-  trait IFFTimeFieldTransformer extends CommonFieldTransformer[IFFTime]
-  implicit object IFFTimeTransformField extends IFFTimeFieldTransformer
-
-
-  trait IFFTimestampFieldTransformer extends CommonFieldTransformer[IFFTimestamp]
-  implicit object IFFTimestampTransformField extends IFFTimestampFieldTransformer
-
-
-  trait IFFStringFieldTransformer extends CommonFieldTransformer[IFFString]
-  implicit object IFFStringTransformField extends IFFStringFieldTransformer
-
-
-  trait IFFUStringFieldTransformer extends CommonFieldTransformer[IFFUString]
-  implicit object IFFUStringTransformField extends IFFUStringFieldTransformer
-
-
-  trait IFFDecimalFieldTransformer extends CommonFieldTransformer[IFFDecimal]
-  implicit object IFFDecimalTransformField extends IFFDecimalFieldTransformer
-
-
-  trait IFFZonedDecimalFieldTransformer extends CommonFieldTransformer[IFFZonedDecimal]
-  implicit object IFFZonedDecimalTransformField extends IFFZonedDecimalFieldTransformer
-
-
-  trait IFFPackedDecimalFieldTransformer extends CommonFieldTransformer[IFFPackedDecimal]
-  implicit object IFFPackedDecimalTransformField extends IFFPackedDecimalFieldTransformer
-
-
-  trait IFFTrailingDecimalFieldTransformer extends CommonFieldTransformer[IFFTrailingDecimal]
-  implicit object IFFTrailingDecimalTransformField extends IFFTrailingDecimalFieldTransformer
-
-
-  trait IFFLeadingDecimalFieldTransformer extends CommonFieldTransformer[IFFLeadingDecimal]
-  implicit object IFFLeadingDecimalTransformField extends IFFLeadingDecimalFieldTransformer
-
-  trait IFFBinaryFieldTransformer extends CommonFieldTransformer[IFFBinary]
-  implicit object IFFBinaryTransformField extends IFFBinaryFieldTransformer
-
-
-  trait IFFIntegerFieldTransformer extends CommonFieldTransformer[IFFInteger]
-  implicit object IFFIntegerTransformField extends IFFIntegerFieldTransformer
-
-
-  trait IFFDoubleFieldTransformer extends CommonFieldTransformer[IFFDouble]
-  implicit object IIFFDoubleTransformField extends IFFDoubleFieldTransformer
-
-
-  def apply[T<:IFFFieldType](implicit transformer: CommonFieldTransformer[T]) = {
+  def apply[T<:Any](implicit transformer: CommonFieldTransformer[T]) = {
     transformer
   }
 

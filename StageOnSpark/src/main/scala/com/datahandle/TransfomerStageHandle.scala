@@ -3,10 +3,12 @@ package com.datahandle
 import java.util
 import java.util.StringTokenizer
 
+
+import com.boc.iff.CommonFieldConvertorContext
 import com.boc.iff.exception.StageInfoErrorException
 import com.boc.iff.model.IFFField
 import com.context.{SqlStageRequest, StageRequest}
-import com.datahandle.tran.CommonFieldTransformerContext
+import com.datahandle.tran. FunctionExecutor
 import com.model.TableInfo
 import org.apache.spark.sql.DataFrame
 
@@ -36,9 +38,10 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
       field.initExpression
     }
     val inputField = inputTableInfo.body.fields.filter(!_.filter)
+    val fun = new FunctionExecutor
     val mapFun = (r:Row)=>{
-      import com.datahandle.tran.CommonFieldTransformerContext._
-      implicit val transformerContext = new CommonFieldTransformerContext
+      import com.boc.iff.CommonFieldConvertorContext._
+      implicit val fieldConvertorContext = new CommonFieldConvertorContext(null,null,null)
       val newData = new ArrayBuffer[String]
       val valueObjectMap =  new util.HashMap[String,Any]
       //把输入的一列装载到hashMap
@@ -47,8 +50,8 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
         valueObjectMap.put(inputField(index).name.toUpperCase(),inputField(index).toObject(fieldValue))
       }
       for(field <- outputTable.body.fields){
-        valueObjectMap.put("fn",field)
-        newData+=field.getValue(valueObjectMap).toString
+        valueObjectMap.put("fn",fun)
+        newData+=field.objectToString(field.getValue(valueObjectMap))
       }
       Row.fromSeq(newData)
     }
@@ -62,6 +65,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
   }
 
   protected def processMethod(express:String):String={
+    println("**********************expression1:"+express)
     var exp = express
     for(f<-functions){
       val e = exp.toUpperCase()
@@ -72,24 +76,27 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
         ar += ((i,f.length))
         index = i+1
       }
-      val rplExp = new StringBuffer()
-      var i:Int = 0
-      while(i<ar.size){
-        val pos = ar(i)
-        if(i==0&&pos._1>0){
-          rplExp.append(exp.substring(0,pos._1))
+      if(ar.length>0){
+        val rplExp = new StringBuffer()
+        var i:Int = 0
+        while(i<ar.size){
+          val pos = ar(i)
+          if(i==0&&pos._1>0){
+            rplExp.append(exp.substring(0,pos._1))
+          }
+          rplExp.append(functionObjName).append(".").append(f.toLowerCase())
+          val curStr = if((i+1)<ar.size){
+            exp.substring(pos._1+pos._2,ar(i+1)._1)
+          }else{
+            exp.substring(pos._1+pos._2)
+          }
+          rplExp.append(curStr)
+          i+=1
         }
-        rplExp.append(functionObjName).append(".").append(f.toLowerCase())
-        val curStr = if((i+1)<ar.size){
-          exp.substring(pos._1+pos._2,ar(i+1)._1)
-        }else{
-          exp.substring(pos._1+pos._2)
-        }
-        rplExp.append(curStr)
-        i+=1
+        exp = rplExp.toString
       }
-      exp = rplExp.toString
     }
+    println("**********************expression:"+exp)
     exp
   }
 }

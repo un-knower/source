@@ -1,6 +1,7 @@
 package com.boc.iff
 
 import java.io.FileInputStream
+import java.lang.Double
 import java.math.BigInteger
 import java.nio.charset.CharsetDecoder
 import java.text.{DecimalFormat, SimpleDateFormat}
@@ -16,11 +17,9 @@ import org.apache.commons.lang3.StringUtils
 
 @annotation.implicitNotFound(msg = "No implicit IFFFieldConvertor defined for ${T}.")
 sealed trait CommonFieldConvertor[T<:IFFFieldType] {
-  /**val logger = new ECCLogger()
-  val prop = new Properties()
-  prop.load(new FileInputStream("/app/birdie/bochk/IFFConversion/config/config.properties"))
-  logger.configure(prop)*/
+
   protected def convertFromString(fieldType: T, fieldValue: String): Any = fieldValue
+
   def convert(fieldType: T, fieldValue: String, decoder: CharsetDecoder): String = {
     val fieldValueConvertFromString = convertFromString(fieldType,fieldValue)
     val formattedFieldValue = fieldType match {
@@ -35,6 +34,9 @@ sealed trait CommonFieldConvertor[T<:IFFFieldType] {
     }
     trimedFieldValue.toString
   }
+
+  def objectToString (fieldType: T, fieldValue: Any):String={fieldValue.toString}
+  def toObject(fieldType:T , fieldValue: String):Any={fieldValue}
 }
 
 object CommonFieldConvertor {
@@ -104,6 +106,28 @@ object CommonFieldConvertor {
       val format:java.text.SimpleDateFormat = new SimpleDateFormat(fieldType.pattern)
       format.parse(fieldValue)
     }
+
+    override def toObject(fieldType: CDate, fieldValue: String):Any={
+      if(fieldType.formatSpec!=null){
+        fieldType.formatSpec.getFormatObj.parseObject(fieldValue)
+      }else{
+        val patter = if(StringUtils.isNotEmpty(fieldType.pattern))fieldType.pattern else "yyyyMMdd"
+        val format = new SimpleDateFormat(patter)
+        format.parse(fieldValue)
+      }
+    }
+
+    override def objectToString(fieldType: CDate, fieldValue: Any):String={
+      if(fieldType.formatSpec!=null){
+        fieldType.formatSpec.getFormatObj.format(fieldValue)
+      }else{
+        val patter = if(StringUtils.isNotEmpty(fieldType.pattern))fieldType.pattern else "yyyyMMdd"
+        val format = new SimpleDateFormat(patter)
+        format.format(fieldValue)
+      }
+    }
+
+
   }
   implicit object CDateField extends CDateFieldConvertor
 
@@ -121,11 +145,26 @@ object CommonFieldConvertor {
   implicit object CStringField extends CStringFieldConvertor
 
 
-  trait CDecimalFieldConvertor extends CommonFieldConvertor[CDecimal]
+  trait CDecimalFieldConvertor extends CommonFieldConvertor[CDecimal]{
+    override def objectToString(fieldType: CDecimal,fieldValue: Any) = {
+      var pattern = "#"*(fieldType.precision-fieldType.scale)
+      if(fieldType.scale>0){
+        pattern += "."+"#"*fieldType.scale
+      }
+      val format = new DecimalFormat(pattern)
+      format.format(fieldValue.asInstanceOf[Double])
+    }
+
+    override def toObject(fieldType: CDecimal, fieldValue: String):Any={
+      fieldValue.toDouble
+    }
+  }
   implicit object CDecimalField extends CDecimalFieldConvertor
 
 
-  trait CIntegerFieldConvertor extends CommonFieldConvertor[CInteger]
+  trait CIntegerFieldConvertor extends CommonFieldConvertor[CInteger]{
+    override def toObject(fieldType: CInteger, fieldValue: String):Any={fieldValue.toInt}
+  }
   implicit object CIntegerField extends CIntegerFieldConvertor
 
   def apply[T<:IFFFieldType](implicit convertor: IFFFieldConvertor[T]) = {

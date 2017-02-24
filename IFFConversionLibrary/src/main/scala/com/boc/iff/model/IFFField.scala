@@ -2,7 +2,7 @@ package com.boc.iff.model
 
 import java.util
 
-import com.boc.iff.{AviatorExpressionProcessor, FormatSpec}
+import com.boc.iff.{AviatorExpressionProcessor, FormatSpec, MvelExpressionProcessor}
 import org.apache.commons.lang.StringUtils
 import org.mvel2.compiler.CompiledExpression
 
@@ -15,7 +15,7 @@ import scala.math.Ordering
   * Created by cvinc on 2016/6/8.
   */
 
-class IFFField extends Serializable with AviatorExpressionProcessor {
+class IFFField extends Serializable with MvelExpressionProcessor {
 
   @BeanProperty
   var name: String = _

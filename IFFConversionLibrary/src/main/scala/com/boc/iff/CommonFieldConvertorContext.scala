@@ -22,6 +22,16 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
     convertor.convert(fieldType, fieldValue, decoder)
   }
 
+  protected def toObject[T <: IFFFieldType](fieldType:T,fieldValue:String)
+                                           (implicit transformer: CommonFieldConvertor[T]):Any = {
+    transformer.toObject(fieldType,fieldValue)
+  }
+
+  protected def objectToString[T <: IFFFieldType](fieldType:T,fieldValue:Any)
+                                                 (implicit transformer: CommonFieldConvertor[T]):String = {
+    transformer.objectToString(fieldType,fieldValue)
+  }
+
   def convert(iffField: IFFField, fieldValues: java.util.HashMap[String,Any]): String = {
     val fieldType = iffField.typeInfo
     var fieldValue = ""
@@ -71,6 +81,56 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
       case _ => convert(IFFString(), fieldValue)
     }
   }
+
+  def toObject(iffField:IFFField,fieldValue:String):Any = {
+    val newValue = iffField.typeInfo match {
+      case fieldType@IFFDate() => toObject(fieldType, fieldValue)
+      case fieldType@IFFTime() => toObject(fieldType, fieldValue)
+      case fieldType@IFFTimestamp() => toObject(fieldType, fieldValue)
+      case fieldType@IFFString() => toObject(fieldType, fieldValue)
+      case fieldType@IFFUString() => toObject(fieldType, fieldValue)
+      case fieldType@IFFDecimal() => toObject(fieldType, fieldValue)
+      case fieldType@IFFZonedDecimal() => toObject(fieldType, fieldValue)
+      case fieldType@IFFPackedDecimal() => toObject(fieldType, fieldValue)
+      case fieldType@IFFTrailingDecimal() => toObject(fieldType, fieldValue)
+      case fieldType@IFFLeadingDecimal() => toObject(fieldType, fieldValue)
+      case fieldType@IFFBinary() => toObject(fieldType, fieldValue)
+      case fieldType@IFFInteger() => toObject(fieldType, fieldValue)
+      case fieldType@CString() => toObject(fieldType,fieldValue)
+      case fieldType@CDecimal() => toObject(fieldType,fieldValue)
+      case fieldType@CInteger() => toObject(fieldType,fieldValue)
+      case fieldType@CDate() => toObject(fieldType,fieldValue)
+      case fieldType@CTime() => toObject(fieldType,fieldValue)
+      case fieldType@CTimestamp() => toObject(fieldType,fieldValue)
+      case _ => toObject(CString(), fieldValue)
+    }
+    newValue
+  }
+
+  def objectToString(iffField:IFFField,fieldValue:Any):Any = {
+    val newValue = iffField.typeInfo match {
+      case fieldType@IFFDate() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFTime() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFTimestamp() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFString() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFUString() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFDecimal() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFZonedDecimal() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFPackedDecimal() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFTrailingDecimal() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFLeadingDecimal() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFBinary() => objectToString(fieldType, fieldValue)
+      case fieldType@IFFInteger() => objectToString(fieldType, fieldValue)
+      case fieldType@CString() => objectToString(fieldType,fieldValue)
+      case fieldType@CDecimal() => objectToString(fieldType,fieldValue)
+      case fieldType@CInteger() => objectToString(fieldType,fieldValue)
+      case fieldType@CDate() => objectToString(fieldType,fieldValue)
+      case fieldType@CTime() => objectToString(fieldType,fieldValue)
+      case fieldType@CTimestamp() => objectToString(fieldType,fieldValue)
+      case _ => objectToString(CString(), fieldValue)
+    }
+    newValue
+  }
 }
 
 sealed trait CommonFieldWithConvertor {
@@ -79,6 +139,14 @@ sealed trait CommonFieldWithConvertor {
 
   def convert(fieldValue: java.util.HashMap[String,Any]): String = {
     commonFieldConvertorContext.convert(iffField, fieldValue)
+  }
+
+  def objectToString(fieldValue:Any):String = {
+    commonFieldConvertorContext.objectToString(iffField,fieldValue).toString
+  }
+
+  def toObject(fieldValue:String):Any = {
+    commonFieldConvertorContext.toObject(iffField,fieldValue)
   }
 
 }
