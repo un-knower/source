@@ -3,7 +3,7 @@ package com.datahandle.load
 import java.io.File
 import java.util
 
-import com.boc.iff.model.{IFFField, IFFSection}
+import com.boc.iff.model.{CDate, CDecimal, CInteger, IFFField, IFFFieldType, IFFSection}
 import com.config.SparkJobConfig
 import com.context.StageAppContext
 import com.model.{FileInfo, TableInfo}
@@ -36,6 +36,7 @@ abstract class FileLoader extends Serializable{
     sparkContext = stageAppContext.sparkContext
     jobConfig = stageAppContext.jobConfig
     sqlContext = stageAppContext.sqlContext
+
     tableInfo = loadTableInfo(fileInfo)
     this.fileInfo = fileInfo
 
@@ -51,7 +52,7 @@ abstract class FileLoader extends Serializable{
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
     val basePk2Map= (x:String) => {
       val rowData = x.split(fieldDelimiter)
-      val array = new ArrayBuffer[String]
+      val array = new ArrayBuffer[Any]
       for(v<-rowData){
         array += v
       }
@@ -106,8 +107,21 @@ abstract class FileLoader extends Serializable{
         //logger.error(MESSAGE_ID_CNV1001, iffConversionConfig.metadataFilePath + " ClassNotFoundException.")
         throw e
     }
-    //tableInfo.targetName = fileInfo.targetName
+    tableInfo.dataLineEndWithSeparatorF = fileInfo.dataLineEndWithSeparatorF
+    loadFieldTypeInfo(tableInfo)
     tableInfo
+  }
+
+  /**
+    * 解析 元数据信息中的列数据格式定义
+    *
+    */
+  protected def loadFieldTypeInfo(tableInfo:TableInfo): Unit = {
+    for(field<-tableInfo.body.fields.toArray){
+      if(field.typeInfo == null) {
+        field.typeInfo = IFFFieldType.getFieldType(tableInfo,null,field)
+      }
+    }
   }
 
 }

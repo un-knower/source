@@ -63,7 +63,6 @@ class UnfixedConversionOnSparkJob
           canRead = false
         }
       }
-      println("*************************countLineNumber:"+countLineNumber)
       val bIndex = blockIndex
       val totalSize = totalBlockReadBytesCount
       val currentBlocksSize = currentBlockReadBytesCount

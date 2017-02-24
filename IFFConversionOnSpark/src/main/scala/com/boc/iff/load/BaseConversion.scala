@@ -552,7 +552,6 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
   }
 
   protected def saveRdd(rdd:RDD[String],targetPath:String): Unit ={
-    println("saveRDD to "+targetPath)
     iffConversionConfig.iffFileMode match {
       case FileMode.LOCAL=>
         val result = rdd.collect()
@@ -768,7 +767,7 @@ trait BaseConversionOnSparkJob[T<:BaseConversionOnSparkConfig]
     for(i<-iffMetadata.getBody.fields){
       i.initExpression
     }
-    println("************************ version time 2017-01-12 17:00 ***************************")
+    println("************************ version time 2017-02-21 11:00 ***************************")
     result
   }
 

@@ -21,7 +21,8 @@ class SparkJobConfig extends AppConfig with Serializable{
   var iffNumberOfThread:Int = 0                                                //程序线程数
   var tempDir:String = "/tmp/birdie/sparklet"                                                //程序线程数
   var debug:Boolean = false
-  var defaultDebugFilePath:String = "/tmp/birdie/sparklet/debug"                                                //程序线程数
+  var defaultDebugFilePath:String = "/tmp/birdie/sparklet/debug"                                                //debug文件路径
+  var fileRecordNumber:Int = 1000*1000                                               //程序线程数
 
   override protected def makeOptions(optionParser: scopt.OptionParser[_]) = {
     super.makeOptions(optionParser)
@@ -48,6 +49,9 @@ class SparkJobConfig extends AppConfig with Serializable{
     optionParser.opt[String]("debug")
       .text("debug")
       .foreach(x=>debug=if("Y".equals(x))true else false)
+    optionParser.opt[Int]("file-record-number")
+      .text("fileRecordNumber")
+      .foreach(x=>fileRecordNumber=x)
   }
 
   override def toString = {

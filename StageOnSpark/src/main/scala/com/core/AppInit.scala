@@ -54,6 +54,7 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
       System.setProperty("scala.concurrent.context.numThreads", String.valueOf(jobConfig.iffNumberOfThread))
       System.setProperty("scala.concurrent.context.maxThreads", String.valueOf(jobConfig.iffNumberOfThread))
     }
+    println("************************ version time 2017-02-23 16:00 ***************************")
     true
   }
 

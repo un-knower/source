@@ -19,4 +19,5 @@ class AggregateStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     }
     super.handle(sqlStageRequest)
   }
+
 }

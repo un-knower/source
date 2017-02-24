@@ -75,8 +75,8 @@ class SimpleFileLoader extends FileLoader{
     while(this.standbyFileQueue.size()>0) {
       val filePath = standbyFileQueue.take()
       fileInfo.fileType match {
-        case "fixLength" => createBlockPositionQueueFix(filePath,conversionJob)
-        case "unfixLength" => createBlockPositionQueueUnfix(filePath,conversionJob)
+        case FileType.FIXLENGTH => createBlockPositionQueueFix(filePath,conversionJob)
+        case _ => createBlockPositionQueueUnfix(filePath,conversionJob)
       }
     }
     while(!futureQueue.isEmpty){
@@ -111,7 +111,7 @@ class SimpleFileLoader extends FileLoader{
             if (firstRow) {
               firstRow =  false
               var lineSeq:Int = StringUtils.countMatches(lineStr,tableInfo.srcSeparator)
-              if(tableInfo.dataLineEndWithSeparatorF){
+              if(!tableInfo.dataLineEndWithSeparatorF){
                 lineSeq+=1
               }
               if(lineSeq!= tableInfo.body.getSourceLength) {

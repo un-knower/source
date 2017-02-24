@@ -18,6 +18,8 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       logBuilder.error("Stage[%s] -- inputTable required".format(sqlStageRequest.stageId))
       throw StageInfoErrorException("Stage[%s] -- inputTable required".format(sqlStageRequest.stageId))
     }
+    loadFieldTypeInfo(sqlStageRequest.outPutTable)
+    fillOutPutTable(sqlStageRequest)
     var resultDF = handle(sqlStageRequest)
     //结果集过滤
     if(StringUtils.isNotEmpty(sqlStageRequest.logicFilter)){
@@ -27,7 +29,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
     if(sqlStageRequest.limitFilter>0){
       resultDF = resultDF.limit(sqlStageRequest.limitFilter)
     }
-    if(appContext.jobConfig.debug&&sqlStageRequest.debugInfo!=null){
+    if(appContext.jobConfig.debug&&sqlStageRequest.debugInfo!=null&&(!"IGNORE".equals(sqlStageRequest.debugInfo.method))){
       if(StringUtils.isEmpty(sqlStageRequest.debugInfo.file)){
         sqlStageRequest.debugInfo.file = "%s/%s/%s".format(appContext.jobConfig.defaultDebugFilePath,appContext.sparkContext.applicationId,sqlStageRequest.stageId)
       }
@@ -40,6 +42,22 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
   protected def handle(sqlStageRequest: SqlStageRequest):DataFrame={
     val sql = getSql(sqlStageRequest)
     appContext.sqlContext.sql(sql)
+  }
+
+  protected def fillOutPutTable(sqlStageRequest: SqlStageRequest):Unit = {
+    val sourceTableInfo = appContext.getTable(sqlStageRequest.inputTables.get(0))
+    if(sourceTableInfo!=null) {
+      for (f <- sqlStageRequest.outPutTable.body.fields) {
+        if (f.typeInfo == null) {
+          val sourceField = sourceTableInfo.getBody.getFieldByName(f.fieldExpression)
+          if (sourceField == null) {
+            logBuilder.error("Stage[%s]--Sql type of %s is required ".format(sqlStageRequest.stageId, f.name))
+            throw StageInfoErrorException("Stage[%s]--Sql type of %s is required ".format(sqlStageRequest.stageId, f.name))
+          }
+          f.typeInfo = sourceField.typeInfo
+        }
+      }
+    }
   }
 
 

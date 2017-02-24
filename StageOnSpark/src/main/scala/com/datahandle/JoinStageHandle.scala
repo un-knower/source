@@ -20,4 +20,19 @@ class JoinStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     }
     super.handle(sqlStageRequest)
   }
+
+  override protected def fillOutPutTable(sqlStageRequest: SqlStageRequest):Unit = {
+    for(f<-sqlStageRequest.outPutTable.body.fields){
+      if(f.typeInfo==null){
+        val cols:Array[String] = f.fieldExpression.split(".")
+        val sourceTableInfo = appContext.getTable(cols(0))
+        val sourceField = sourceTableInfo.getBody.getFieldByName(cols(1))
+        if(sourceField==null){
+          logBuilder.error("Stage[%s]--Sql type of %s is required ".format(sqlStageRequest.stageId,f.name))
+          throw StageInfoErrorException("Stage[%s]--Sql type of %s is required ".format(sqlStageRequest.stageId,f.name))
+        }
+        f.typeInfo = sourceField.typeInfo
+      }
+    }
+  }
 }

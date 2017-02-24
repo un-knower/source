@@ -1,8 +1,9 @@
 package com.datahandle
 
+import com.boc.iff.model.{IFFField, IFFFieldType}
 import com.context.{StageAppContext, StageRequest}
 import com.log.LogBuilder
-import com.model.DebugInfo
+import com.model.{DebugInfo, TableInfo}
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.hadoop.io.IOUtils
 import org.apache.spark.rdd.RDD
@@ -74,6 +75,18 @@ trait StageHandle[T<:StageRequest] {
                 if (!f.getPath.toString.endsWith("TARGET")) {
                     fileSystem.delete(f.getPath, true)
                 }
+            }
+        }
+    }
+
+    /**
+      * 解析 元数据信息中的列数据格式定义
+      *
+      */
+    protected def loadFieldTypeInfo(tableInfo:TableInfo): Unit = {
+        for(field<-tableInfo.body.fields.toArray){
+            if(field.typeInfo == null) {
+                field.typeInfo = IFFFieldType.getFieldType(tableInfo,null,field)
             }
         }
     }

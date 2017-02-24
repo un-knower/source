@@ -59,7 +59,7 @@ object DFSUtils {
     println("*********************delete dir:"+path)
     if(fileSystem.exists(fsPath)){
       if(fileSystem.delete(fsPath, true)) {
-        println("*********************delete dir:"+path+"success********************")
+        println("*********************delete dir:"+path+" success********************")
       }
     }
   }

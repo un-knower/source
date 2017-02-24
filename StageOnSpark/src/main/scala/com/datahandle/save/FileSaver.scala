@@ -18,6 +18,7 @@ abstract class FileSaver extends Serializable{
   var fileInfo:FileInfo = _
   var jobConfig:SparkJobConfig = _
   var tableInfo:TableInfo = _
+  var repartitionNumber:Int = _
 
   def save(inputTable:String,fileInfo:FileInfo,cleanTargetPath:Boolean)(implicit stageAppContext: StageAppContext): Unit ={
     sparkContext = stageAppContext.sparkContext
@@ -26,6 +27,9 @@ abstract class FileSaver extends Serializable{
     this.fileInfo = fileInfo
     val tmpPath = getTempPath(inputTable)
     val df = stageAppContext.getDataFrame(tableInfo)
+    /*val rc = df.count()
+    repartitionNumber = (rc/jobConfig.fileRecordNumber).toInt+1
+    println("***********************repartitionNumber="+repartitionNumber+"************")*/
     try{
       saveDataFrame(tmpPath,df)
       if(cleanTargetPath)cleanPath(fileInfo.dataPath)

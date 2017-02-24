@@ -57,7 +57,9 @@ class FileInfo{
   @BeanProperty
   var xmlPath:String = ""
   @BeanProperty
-  var targetSeparator:String = ""
+  var targetSeparator:String = "\001"
+  @BeanProperty
+  var dataLineEndWithSeparatorF:Boolean = false
 }
 
 object FileInfo{

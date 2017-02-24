@@ -23,6 +23,9 @@ class TextFileSaver extends FileSaver{
       str.toString
     }
     val rdd = df.rdd.map(rowToString)
+    /*if(rdd.getNumPartitions>repartitionNumber){
+      rdd.repartition(repartitionNumber)
+    }*/
     rdd.saveAsTextFile(path)
   }
 }

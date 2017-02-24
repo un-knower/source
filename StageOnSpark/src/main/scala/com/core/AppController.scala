@@ -39,6 +39,7 @@ class AppController {
       case request: JoinStageRequest => getHandle[JoinStageRequest]()
       case request: SortStageRequest => getHandle[SortStageRequest]()
       case request: UnionStageRequest => getHandle[UnionStageRequest]()
+      case request: TransformerStageRequest => getHandle[TransformerStageRequest]()
     }
   }
 

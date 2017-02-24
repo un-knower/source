@@ -1,7 +1,7 @@
 package com.boc.iff.model
 
 import java.util
-
+import java.util.HashMap
 import org.apache.commons.lang3.StringUtils
 
 import scala.collection.JavaConversions._
@@ -13,11 +13,23 @@ import scala.collection.JavaConversions._
 class IFFSection extends Serializable {
 
   var fields: List[IFFField] = Nil
+  var fieldsMap:HashMap[String,IFFField] = _
 
   def setFields(fields: util.ArrayList[IFFField]): Unit = {
     this.fields = fields.toList
+    fieldsMap = null
   }
 
+
+  def getFieldByName(name:String): IFFField ={
+    if(fieldsMap==null){
+      fieldsMap = new util.HashMap[String,IFFField]
+      for(f<-fields){
+        fieldsMap.put(f.name.toLowerCase,f)
+      }
+    }
+    fieldsMap.get(name.toLowerCase())
+  }
   def getLength: Int = if(fields.nonEmpty) fields.last.getEndPos else 0
 
   override def toString: String = {

@@ -4,6 +4,7 @@ import java.util
 
 import com.boc.iff.{AviatorExpressionProcessor, FormatSpec}
 import org.apache.commons.lang.StringUtils
+import org.mvel2.compiler.CompiledExpression
 
 import scala.beans.{BeanProperty, BooleanBeanProperty}
 import scala.collection.mutable
