@@ -1,12 +1,13 @@
 package com.datahandle
 
-import com.boc.iff.model.{IFFField, IFFFieldType}
+import com.boc.iff.exception.StageHandleException
+import com.boc.iff.model.IFFFieldType
 import com.context.{StageAppContext, StageRequest}
 import com.log.LogBuilder
 import com.model.{DebugInfo, TableInfo}
+import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.hadoop.io.IOUtils
-import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{DataFrame, Row}
 
 import scala.collection.mutable
@@ -23,6 +24,17 @@ trait StageHandle[T<:StageRequest] {
         logBuilder = appContext.constructLogBuilder().setLogThreadID(Thread.currentThread().getId.toString)
         execute(stRequest)
     }
+
+    def check(stRequest:StageRequest):Unit={
+        if(stRequest.inputTables!=null&&(!stRequest.inputTables.isEmpty)){
+            for(i<-0 until stRequest.inputTables.size()){
+                if(!appContext.checkTableExist(stRequest.inputTables.get(i))){
+                    throw new StageHandleException("Stage[%s]-Table[%s] not exists.".format(stRequest.stageId,i))
+                }
+            }
+        }
+    }
+
     def execute(stRequest:StageRequest): Unit
 
     protected def saveDebug(debugInfo:DebugInfo,df:DataFrame):Unit={
@@ -84,9 +96,11 @@ trait StageHandle[T<:StageRequest] {
       *
       */
     protected def loadFieldTypeInfo(tableInfo:TableInfo): Unit = {
-        for(field<-tableInfo.body.fields.toArray){
-            if(field.typeInfo == null) {
-                field.typeInfo = IFFFieldType.getFieldType(tableInfo,null,field)
+        if(tableInfo.body!=null&&tableInfo.body.fields!=null) {
+            for (field <- tableInfo.body.fields.toArray) {
+                if (field.typeInfo == null&&StringUtils.isNotEmpty(field.`type`)) {
+                    field.typeInfo = IFFFieldType.getFieldType(tableInfo, null, field)
+                }
             }
         }
     }

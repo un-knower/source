@@ -18,8 +18,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       logBuilder.error("Stage[%s] -- inputTable required".format(sqlStageRequest.stageId))
       throw StageInfoErrorException("Stage[%s] -- inputTable required".format(sqlStageRequest.stageId))
     }
-    loadFieldTypeInfo(sqlStageRequest.outPutTable)
-    fillOutPutTable(sqlStageRequest)
+    prepare(sqlStageRequest)
     var resultDF = handle(sqlStageRequest)
     //结果集过滤
     if(StringUtils.isNotEmpty(sqlStageRequest.logicFilter)){
@@ -39,6 +38,12 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
     appContext.addTable(sqlStageRequest.outPutTable)
   }
 
+  protected def prepare(sqlStageRequest: SqlStageRequest):Boolean={
+    loadFieldTypeInfo(sqlStageRequest.outPutTable)
+    fillOutPutTable(sqlStageRequest)
+    true
+  }
+
   protected def handle(sqlStageRequest: SqlStageRequest):DataFrame={
     val sql = getSql(sqlStageRequest)
     appContext.sqlContext.sql(sql)
@@ -46,16 +51,14 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
 
   protected def fillOutPutTable(sqlStageRequest: SqlStageRequest):Unit = {
     val sourceTableInfo = appContext.getTable(sqlStageRequest.inputTables.get(0))
-    if(sourceTableInfo!=null) {
-      for (f <- sqlStageRequest.outPutTable.body.fields) {
-        if (f.typeInfo == null) {
-          val sourceField = sourceTableInfo.getBody.getFieldByName(f.fieldExpression)
-          if (sourceField == null) {
-            logBuilder.error("Stage[%s]--Sql type of %s is required ".format(sqlStageRequest.stageId, f.name))
-            throw StageInfoErrorException("Stage[%s]--Sql type of %s is required ".format(sqlStageRequest.stageId, f.name))
-          }
-          f.typeInfo = sourceField.typeInfo
+    for (f <- sqlStageRequest.outPutTable.body.fields) {
+      if (f.typeInfo == null) {
+        val sourceField = sourceTableInfo.getBody.getFieldByName(f.fieldExpression)
+        if (sourceField == null) {
+          logBuilder.error("Stage[%s]--Sql type of %s is required ".format(sqlStageRequest.stageId, f.name))
+          throw StageInfoErrorException("Stage[%s]--Sql type of %s is required ".format(sqlStageRequest.stageId, f.name))
         }
+        f.typeInfo = sourceField.typeInfo
       }
     }
   }
@@ -71,6 +74,9 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       }
       sql.append(field.fieldExpression).append(" as ").append(field.name)
       firstColF = false
+    }
+    if(StringUtils.isEmpty(sqlStageRequest.from)){
+      throw new StageInfoErrorException("Stage[%s]-xml define error, property from is required".format(sqlStageRequest.stageId))
     }
     sql.append(" from ").append(sqlStageRequest.from)
     if(StringUtils.isNotEmpty(sqlStageRequest.groupBy)){

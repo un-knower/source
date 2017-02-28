@@ -12,6 +12,7 @@ import org.apache.commons.lang.StringUtils
 
 /**
   * Created by cvinc on 2016/6/8.
+  *
   * @author www.birdiexx.com
   */
 class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IFFFileInfo, val decoder: CharsetDecoder) extends Serializable {
@@ -83,7 +84,8 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
   }
 
   def toObject(iffField:IFFField,fieldValue:String):Any = {
-    val newValue = iffField.typeInfo match {
+    val newValue = if (StringUtils.isEmpty(fieldValue)) null
+    else iffField.typeInfo match {
       case fieldType@IFFDate() => toObject(fieldType, fieldValue)
       case fieldType@IFFTime() => toObject(fieldType, fieldValue)
       case fieldType@IFFTimestamp() => toObject(fieldType, fieldValue)
@@ -96,19 +98,19 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
       case fieldType@IFFLeadingDecimal() => toObject(fieldType, fieldValue)
       case fieldType@IFFBinary() => toObject(fieldType, fieldValue)
       case fieldType@IFFInteger() => toObject(fieldType, fieldValue)
-      case fieldType@CString() => toObject(fieldType,fieldValue)
-      case fieldType@CDecimal() => toObject(fieldType,fieldValue)
-      case fieldType@CInteger() => toObject(fieldType,fieldValue)
-      case fieldType@CDate() => toObject(fieldType,fieldValue)
-      case fieldType@CTime() => toObject(fieldType,fieldValue)
-      case fieldType@CTimestamp() => toObject(fieldType,fieldValue)
+      case fieldType@CString() => toObject(fieldType, fieldValue)
+      case fieldType@CDecimal() => toObject(fieldType, fieldValue)
+      case fieldType@CInteger() => toObject(fieldType, fieldValue)
+      case fieldType@CDate() => toObject(fieldType, fieldValue)
+      case fieldType@CTime() => toObject(fieldType, fieldValue)
+      case fieldType@CTimestamp() => toObject(fieldType, fieldValue)
       case _ => toObject(CString(), fieldValue)
     }
     newValue
   }
 
-  def objectToString(iffField:IFFField,fieldValue:Any):Any = {
-    val newValue = iffField.typeInfo match {
+  def objectToString(iffField:IFFField,fieldValue:Any):String = {
+    val newValue = if(fieldValue==null)"" else iffField.typeInfo match {
       case fieldType@IFFDate() => objectToString(fieldType, fieldValue)
       case fieldType@IFFTime() => objectToString(fieldType, fieldValue)
       case fieldType@IFFTimestamp() => objectToString(fieldType, fieldValue)

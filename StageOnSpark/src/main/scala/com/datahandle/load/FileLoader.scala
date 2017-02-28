@@ -3,9 +3,11 @@ package com.datahandle.load
 import java.io.File
 import java.util
 
+import com.boc.iff.exception.{StageHandleException, StageInfoErrorException}
 import com.boc.iff.model.{CDate, CDecimal, CInteger, IFFField, IFFFieldType, IFFSection}
 import com.config.SparkJobConfig
 import com.context.StageAppContext
+import com.log.LogBuilder
 import com.model.{FileInfo, TableInfo}
 import org.apache.commons.io.FileUtils
 import org.apache.commons.lang3.StringUtils
@@ -29,6 +31,7 @@ abstract class FileLoader extends Serializable{
   var jobConfig:SparkJobConfig = _
   var tableInfo:TableInfo = _
   var fileInfo:FileInfo = _
+  var logBuilder:LogBuilder = _
 
   var fieldDelimiter = "\001"
 
@@ -36,6 +39,7 @@ abstract class FileLoader extends Serializable{
     sparkContext = stageAppContext.sparkContext
     jobConfig = stageAppContext.jobConfig
     sqlContext = stageAppContext.sqlContext
+    logBuilder = stageAppContext.constructLogBuilder()
 
     tableInfo = loadTableInfo(fileInfo)
     this.fileInfo = fileInfo
@@ -68,6 +72,9 @@ abstract class FileLoader extends Serializable{
   }
 
   protected def loadTableInfo(fileInfo:FileInfo): TableInfo ={
+    if(StringUtils.isEmpty(fileInfo.xmlPath)){
+      throw new StageInfoErrorException("Xml file is required")
+    }
     val metadataFile = new File(fileInfo.xmlPath)
     var metadataXml = FileUtils.readFileToString(metadataFile, fileInfo.metadataFileEncoding)
     metadataXml = StringUtils.replace(metadataXml, "com.boc.oms.model.", "com.boc.iff.model.")
@@ -101,10 +108,10 @@ abstract class FileLoader extends Serializable{
     }
     catch {
       case e: BeansException =>
-        //logger.error(MESSAGE_ID_CNV1001, iffConversionConfig.metadataFilePath + " BeansException.")
+        logBuilder.error( fileInfo.xmlPath + " BeansException.")
         throw e
       case e: ClassNotFoundException =>
-        //logger.error(MESSAGE_ID_CNV1001, iffConversionConfig.metadataFilePath + " ClassNotFoundException.")
+        logBuilder.error( fileInfo.xmlPath + " ClassNotFoundException.")
         throw e
     }
     tableInfo.dataLineEndWithSeparatorF = fileInfo.dataLineEndWithSeparatorF

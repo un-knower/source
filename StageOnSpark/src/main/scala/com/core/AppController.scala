@@ -13,6 +13,7 @@ class AppController {
     val logBuilder = stageAppContext.constructLogBuilder()
     logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
     var stageInfo = stageAppContext.fistStage
+    logBuilder.info("first stage of the job [%s]".format(stageInfo.stageId))
     var finishStageNumber:Int = 0
     val totalStageNumber:Int = stageAppContext.stagesMap.size()
     do{

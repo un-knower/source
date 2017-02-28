@@ -46,7 +46,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
       val valueObjectMap =  new util.HashMap[String,Any]
       //把输入的一列装载到hashMap
       for(index<-0 until inputField.length){
-        val fieldValue = r.get(index).asInstanceOf[String]
+        val fieldValue = if(r.get(index)!=null)r.get(index).toString else ""
         valueObjectMap.put(inputField(index).name.toUpperCase(),inputField(index).toObject(fieldValue))
       }
       for(field <- outputTable.body.fields){
@@ -65,7 +65,6 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
   }
 
   protected def processMethod(express:String):String={
-    println("**********************expression1:"+express)
     var exp = express
     for(f<-functions){
       val e = exp.toUpperCase()
@@ -96,7 +95,6 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
         exp = rplExp.toString
       }
     }
-    println("**********************expression:"+exp)
     exp
   }
 }

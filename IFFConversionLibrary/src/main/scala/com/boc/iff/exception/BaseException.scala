@@ -20,5 +20,6 @@ case class TableLoadException(val message:String) extends Exception(message)
 
 case class StageInfoErrorException(val message:String) extends Exception(message)
 
+case class StageHandleException(val message:String) extends Exception(message)
 
 

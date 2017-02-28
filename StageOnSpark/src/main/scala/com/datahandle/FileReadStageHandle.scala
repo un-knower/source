@@ -1,5 +1,6 @@
 package com.datahandle
 
+import com.boc.iff.exception.{BaseException, StageHandleException, StageInfoErrorException}
 import com.context.{FileReadStageRequest, StageAppContext, StageRequest}
 import com.datahandle.load.{FileLoader, HiveFileLoader, ParquetFileLoader, SimpleFileLoader}
 import com.model.FileInfo
@@ -15,7 +16,13 @@ class FileReadStageHandle[T<:StageRequest] extends StageHandle[T] {
     for(index<-0 until fileStageRequest.fileInfos.size()){
       val fileInfo = fileStageRequest.fileInfos.get(index)
       if(!context.checkTableExist(fileInfo.targetName)) {
-        this.getFileLoader(fileInfo).load(fileInfo)
+        try {
+          this.getFileLoader(fileInfo).load(fileInfo)
+        }catch {
+          case e:StageInfoErrorException => throw new StageInfoErrorException("Stage[%s]-".format(stRequest.stageId)+e.message)
+          case e:StageHandleException => throw new StageHandleException("Stage[%s]-".format(stRequest.stageId)+e.message)
+          case t:Throwable => throw t
+        }
       }
     }
 
