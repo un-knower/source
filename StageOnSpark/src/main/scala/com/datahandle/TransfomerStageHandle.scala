@@ -34,7 +34,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val inputDF = appContext.getDataFrame(inputTableInfo)
     val outputTable = sqlStageRequest.outPutTable
     for(field <- outputTable.body.fields){
-      field.expression = processMethod(field.fieldExpression)
+      field.expression = replaceArgs(processMethod(field.fieldExpression))
       field.initExpression
     }
     val inputField = inputTableInfo.body.fields.filter(!_.filter)

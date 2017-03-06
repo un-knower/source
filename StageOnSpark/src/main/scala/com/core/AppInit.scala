@@ -4,6 +4,7 @@ import java.io.{File, FileInputStream}
 import java.util.Properties
 
 import com.boc.iff._
+import com.boc.iff.exception.StageHandleException
 import com.boc.iff.model._
 import com.config.SparkJobConfig
 import com.context.StageAppContext
@@ -48,6 +49,20 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
         appContext.stagesMap.put(stage.stageId,stage)
       }
     }
+
+    val batchArgNameSize = if(batchInfo.batchArgNames==null) 0 else batchInfo.batchArgNames.size()
+    val batchArgSize = if(appContext.batchArgs==null) 0 else appContext.batchArgs.length
+    if(batchArgNameSize!=batchArgSize){
+      throw StageHandleException("Arg number not fix. This need [%s],provide arg number[%S]".format(batchArgNameSize,batchArgSize))
+    }
+    if(batchArgNameSize>0) {
+      appContext.batchArgName = (for(i<-0 until batchArgNameSize) yield { batchInfo.batchArgNames.get(i)}).toArray
+      val argMap = new StringBuffer()
+      for(i<-0 until batchArgNameSize)argMap.append(appContext.batchArgName(i)).append("=").append(appContext.batchArgs(i)).append(" , ")
+      logBuilder.info("Batch Job args[%s]".format(argMap.toString))
+    }
+
+
     if(jobConfig.iffNumberOfThread>0) {
       logBuilder.info("Set thread numbers["+jobConfig.iffNumberOfThread+"]")
       System.setProperty("scala.concurrent.context.minThreads", String.valueOf(jobConfig.iffNumberOfThread))

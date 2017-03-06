@@ -25,18 +25,21 @@ class FileStageInfo extends StageInfo{
       case OperationType.READ =>
         val request = new FileReadStageRequest
         request.fileInfos = fileInfos
+        request.stageId = stageId
         request
       case OperationType.APPEND =>
         val request = new FileSaveStageRequest
         request.fileInfos = fileInfos
         request.inputTables = this.inputTables
         request.cleanTargetPath = false
+        request.stageId = stageId
         request
       case OperationType.OVERRIDE =>
         val request = new FileSaveStageRequest
         request.fileInfos = fileInfos
         request.inputTables = this.inputTables
         request.cleanTargetPath = true
+        request.stageId = stageId
         request
     }
     stageRequest.debugInfo = debugInfo

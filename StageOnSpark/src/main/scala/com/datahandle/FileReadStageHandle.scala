@@ -13,17 +13,16 @@ class FileReadStageHandle[T<:StageRequest] extends StageHandle[T] {
   override def execute(stRequest: StageRequest): Unit = {
     implicit val context = appContext
     val fileStageRequest = stRequest.asInstanceOf[FileReadStageRequest]
-    for(index<-0 until fileStageRequest.fileInfos.size()){
-      val fileInfo = fileStageRequest.fileInfos.get(index)
-      if(!context.checkTableExist(fileInfo.targetName)) {
-        try {
-          this.getFileLoader(fileInfo).load(fileInfo)
-        }catch {
-          case e:StageInfoErrorException => throw new StageInfoErrorException("Stage[%s]-".format(stRequest.stageId)+e.message)
-          case e:StageHandleException => throw new StageHandleException("Stage[%s]-".format(stRequest.stageId)+e.message)
-          case t:Throwable => throw t
-        }
-      }
+    if(fileStageRequest.fileInfos.size()>1){
+      throw new StageInfoErrorException("Stage[%s]-file number must be one".format(stRequest.stageId))
+    }
+    val fileInfo = fileStageRequest.fileInfos.get(0)
+    try {
+      this.getFileLoader(fileInfo).load(fileStageRequest)
+    }catch {
+      case e:StageInfoErrorException => throw new StageInfoErrorException("Stage[%s]-".format(stRequest.stageId)+e.message)
+      case e:StageHandleException => throw new StageHandleException("Stage[%s]-".format(stRequest.stageId)+e.message)
+      case t:Throwable => throw t
     }
 
   }

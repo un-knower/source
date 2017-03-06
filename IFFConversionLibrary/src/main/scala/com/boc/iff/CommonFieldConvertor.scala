@@ -152,7 +152,7 @@ object CommonFieldConvertor {
         pattern += "."+"#"*fieldType.scale
       }
       val format = new DecimalFormat(pattern)
-      format.format(fieldValue.asInstanceOf[Double])
+      format.format(fieldValue.toString.toDouble)
     }
 
     override def toObject(fieldType: CDecimal, fieldValue: String):Any={

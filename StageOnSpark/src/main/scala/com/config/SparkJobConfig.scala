@@ -3,6 +3,7 @@ package com.config
 import java.lang.management.ManagementFactory
 
 import com.boc.iff.{AppConfig, IFFUtils}
+import org.apache.commons.lang3.StringUtils
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.{SparkConf, SparkContext}
 
@@ -18,11 +19,12 @@ class SparkJobConfig extends AppConfig with Serializable{
   var metadataFilePath: String = ""                                         //XML 描述文件路径
   var metadataFileEncoding: String = "UTF-8"                                //XML 描述文件编码
   var blockSize: Int = 200 * 1024 * 1024                                   //每次读取文件的块大小, 默认 200M
-  var iffNumberOfThread:Int = 0                                                //程序线程数
+  var iffNumberOfThread:Int = 0                                               //程序线程数
   var tempDir:String = "/tmp/birdie/sparklet"                                                //程序线程数
   var debug:Boolean = false
   var defaultDebugFilePath:String = "/tmp/birdie/sparklet/debug"                                                //debug文件路径
   var fileRecordNumber:Int = 1000*1000                                               //程序线程数
+  var batchArgs:Array[String] = _                                                            //批处理全局参数
 
   override protected def makeOptions(optionParser: scopt.OptionParser[_]) = {
     super.makeOptions(optionParser)
@@ -52,6 +54,12 @@ class SparkJobConfig extends AppConfig with Serializable{
     optionParser.opt[Int]("file-record-number")
       .text("fileRecordNumber")
       .foreach(x=>fileRecordNumber=x)
+    optionParser.opt[Int]("file-record-number")
+      .text("fileRecordNumber")
+      .foreach(x=>fileRecordNumber=x)
+    optionParser.opt[String]("batch-args")
+      .text("batchArgs")
+      .foreach(x=> batchArgs = StringUtils.split(x," "))
   }
 
   override def toString = {

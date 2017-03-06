@@ -38,6 +38,9 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
 
   var fistStage:StageInfo = _
 
+  var batchArgs:Array[String] = jobConfig.batchArgs
+  var batchArgName:Array[String] = _
+
   def checkTableExist(table:String):Boolean={
     if(tablesMap.containsKey(table)){
       true
@@ -50,7 +53,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     if(tablesMap.containsKey(table)){
       tablesMap.get(table)
     }else{
-      throw TableLoadException("Stage[%s] | Table[%s] can not be found，check if it loaded".format(currentStage.stageId,table))
+      throw TableLoadException("Stage[%s] | Table[%s] can not be found,check if it loaded".format(currentStage.stageId,table))
     }
   }
 
@@ -63,7 +66,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     if(dataSetObjectMap.containsKey(tableInfo.targetName)){
       dataSetObjectMap.get(tableInfo.targetName)
     }else{
-      throw TableLoadException("Stage[%s] | Table[%s] can not be found，check if it loaded".format(currentStage.stageId,tableInfo.targetName))
+      throw TableLoadException("Stage[%s] | Table[%s] can not be found,check if it loaded".format(currentStage.stageId,tableInfo.targetName))
     }
   }
 
@@ -85,6 +88,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     val logBuilder = new LogBuilder(logger)
     logBuilder.setLogJobID(sparkContext.applicationId)
   }
+
 
 
 }

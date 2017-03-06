@@ -11,5 +11,7 @@ class BatchInfo extends Serializable {
   var batchJobName:String = ""
   @BeanProperty
   var stages: java.util.List[StageInfo] = _
+  @BeanProperty
+  var batchArgNames: java.util.List[String] = _
 
 }

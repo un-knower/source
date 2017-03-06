@@ -6,7 +6,7 @@ import java.util
 import com.boc.iff.exception.{StageHandleException, StageInfoErrorException}
 import com.boc.iff.model.{CDate, CDecimal, CInteger, IFFField, IFFFieldType, IFFSection}
 import com.config.SparkJobConfig
-import com.context.StageAppContext
+import com.context.{FileReadStageRequest, StageAppContext}
 import com.log.LogBuilder
 import com.model.{FileInfo, TableInfo}
 import org.apache.commons.io.FileUtils
@@ -35,14 +35,15 @@ abstract class FileLoader extends Serializable{
 
   var fieldDelimiter = "\001"
 
-  def load(fileInfo:FileInfo)(implicit stageAppContext: StageAppContext): Unit ={
+  def load(fileReadStageRequest:FileReadStageRequest)(implicit stageAppContext: StageAppContext): Unit ={
     sparkContext = stageAppContext.sparkContext
     jobConfig = stageAppContext.jobConfig
     sqlContext = stageAppContext.sqlContext
     logBuilder = stageAppContext.constructLogBuilder()
-
+    this.fileInfo = fileReadStageRequest.fileInfos.get(0)
     tableInfo = loadTableInfo(fileInfo)
-    this.fileInfo = fileInfo
+    tableInfo.targetName = fileReadStageRequest.stageId
+
 
     stageAppContext.addTable(tableInfo)
     val df = loadFile
@@ -104,7 +105,7 @@ abstract class FileLoader extends Serializable{
       tableInfo.header = appContext.getBean("header", iffSectionClass)
       tableInfo.body = appContext.getBean("body", iffSectionClass)
       tableInfo.footer = appContext.getBean("footer", iffSectionClass)
-      tableInfo.targetName = appContext.getBean("TargetTable").asInstanceOf[String]
+      //tableInfo.targetName = appContext.getBean("TargetTable").asInstanceOf[String]
     }
     catch {
       case e: BeansException =>

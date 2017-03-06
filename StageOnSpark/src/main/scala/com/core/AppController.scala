@@ -1,5 +1,6 @@
 package com.core
 
+import com.boc.iff.exception.BaseException
 import com.context.{StageAppContext, _}
 import com.datahandle.StageHandle
 import org.apache.commons.lang3.StringUtils
@@ -21,7 +22,14 @@ class AppController {
       val request: StageRequest = stageInfo.getStageRequest
       val executeHandle = findHandle(request)
       stageAppContext.currentStage = stageInfo
-      executeHandle.doCommand(request)
+      try {
+        executeHandle.doCommand(request)
+      }catch {
+        case e:BaseException => throw e
+        case t:Throwable =>
+          logBuilder.error("Error case when handling Stage["+stageInfo.stageId+"]")
+          throw t
+      }
       if(StringUtils.isNotEmpty(stageInfo.nextStageId)){
         stageInfo = stageAppContext.stagesMap.get(stageInfo.nextStageId)
       }else{
