@@ -23,9 +23,15 @@ class DataProcessConfig extends IFFConversionConfig{
   override protected def makeOptions(optionParser: scopt.OptionParser[_]) = {
     super.makeOptions(optionParser)
     optionParser.opt[String]("f-table-name")
-      .required()
+      //.required()
       .text("F Table Name")
       .foreach { x=> this.fTableName = x.toLowerCase }
+      optionParser.opt[String]("i-table-dat-file")
+        .text("history increase Table data file path")
+        .foreach { x=> this.iTableDatFilePath = x.toLowerCase }
+      optionParser.opt[String]("f-table-dat-file")
+        .text("history full Table data file path")
+        .foreach { x=> this.fTableDatFilePath = x.toLowerCase }
   }
   override def toString = {
     val builder = new mutable.StringBuilder(super.toString)
