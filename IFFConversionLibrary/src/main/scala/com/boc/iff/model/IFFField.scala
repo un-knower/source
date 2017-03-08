@@ -65,6 +65,8 @@ class IFFField extends Serializable with MvelExpressionProcessor {
   @BeanProperty
   var virtual: Boolean = false
 
+  @BeanProperty
+  var diffField: Boolean = false
 
   def initExpression:Unit = if(StringUtils.isNotEmpty(expression))initExpression(expression)
 
@@ -93,6 +95,7 @@ class IFFField extends Serializable with MvelExpressionProcessor {
     sb ++= ("<property name=\"primaryKey\" value=\"" + (if (primaryKey) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"virtual\" value=\"" + (if (virtual) "true" else "false") + "\"/>")
     sb ++= ("<property name=\"fieldExpression\" value=\"" + fieldExpression+ "\"/>")
+    sb ++= ("<property name=\"diffField\" value=\"" + diffField+ "\"/>")
     sb ++= "</bean>"
     sb.toString
   }
@@ -110,7 +113,8 @@ class IFFField extends Serializable with MvelExpressionProcessor {
       "expression" -> expression,
       "formatSpec" -> formatSpec,
       "primaryKey" -> primaryKey,
-      "virtual" -> virtual
+      "virtual" -> virtual,
+      "diffField" -> diffField
     )
     val sb = new StringBuilder()
     sb ++= "IFFField ["
