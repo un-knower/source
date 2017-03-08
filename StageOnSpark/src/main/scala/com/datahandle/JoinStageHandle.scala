@@ -22,7 +22,7 @@ class JoinStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
   }
 
   override protected def fillOutPutTable(sqlStageRequest: SqlStageRequest):Unit = {
-    for(f<-sqlStageRequest.outPutTable.body.fields){
+    for(f<-sqlStageRequest.outputTable.body.fields){
       if(f.typeInfo==null){
         val cols =StringUtils.split(f.fieldExpression,".")
         val sourceTableInfo = appContext.getTable(cols(0))

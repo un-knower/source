@@ -10,7 +10,6 @@ import scala.beans.BeanProperty
   * Created by cvinc on 2016/6/8.
   */
 class SqlStageRequest extends StageRequest{
-  var outPutTable:TableInfo = _
 
   var logicFilter:String = ""
 

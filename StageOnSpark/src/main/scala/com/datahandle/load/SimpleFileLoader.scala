@@ -11,6 +11,7 @@ import com.boc.iff.exception.RecordNotFixedException
 import com.boc.iff.model.{CDecimal, CInteger, IFFField, IFFFileInfo}
 import com.model.FileInfo.FileType
 import org.apache.commons.lang3.StringUtils
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.spark.rdd.RDD
@@ -24,6 +25,7 @@ import scala.concurrent.duration.Duration
 
 /**
   * Created by scutlxj on 2017/1/22.
+  * 加载原始文件
   */
 class SimpleFileLoader extends FileLoader{
 
@@ -35,7 +37,6 @@ class SimpleFileLoader extends FileLoader{
   protected val standbyFileQueue = new LinkedBlockingQueue[String]()
   protected val processFileQueue = new LinkedBlockingQueue[String]()
   protected val futureQueue = new LinkedBlockingQueue[Future[RDD[String]]]()
-
   protected val rddQueue = new LinkedBlockingQueue[RDD[String]]()
 
   def loadFile(): DataFrame = {
@@ -50,7 +51,14 @@ class SimpleFileLoader extends FileLoader{
     while(!rddQueue.isEmpty){
       targetRdd = targetRdd.union(rddQueue.take())
     }
-    changeRddToDataFrame(targetRdd.filter(x=>(!x.endsWith("ERROR"))))
+    targetRdd.cache()
+    val errorPath = getErrorPath()
+    implicit val configuration: Configuration = sparkContext.hadoopConfiguration
+    DFSUtils.deleteDir(errorPath)
+    targetRdd.filter(_.endsWith("ERROR")).saveAsTextFile(errorPath)
+    val rdd = targetRdd.filter(x=>(!x.endsWith("ERROR")))
+    targetRdd.persist()
+    changeRddToDataFrame(rdd)
   }
 
   /**
@@ -429,9 +437,5 @@ class SimpleFileLoader extends FileLoader{
     }
     dataFileProcessor
   }
-
-
-
-
 
 }

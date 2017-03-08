@@ -3,8 +3,8 @@ package com.datahandle.load
 import java.io.File
 import java.util
 
-import com.boc.iff.exception.{StageHandleException, StageInfoErrorException}
-import com.boc.iff.model.{CDate, CDecimal, CInteger, IFFField, IFFFieldType, IFFSection}
+import com.boc.iff.exception.StageInfoErrorException
+import com.boc.iff.model.{IFFField, IFFFieldType, IFFSection}
 import com.config.SparkJobConfig
 import com.context.{FileReadStageRequest, StageAppContext}
 import com.log.LogBuilder
@@ -26,28 +26,40 @@ import scala.collection.mutable.ArrayBuffer
   */
 abstract class FileLoader extends Serializable{
 
+  var stageAppContext:StageAppContext = _
   var sparkContext:SparkContext = _
   var sqlContext:SQLContext = _
   var jobConfig:SparkJobConfig = _
   var tableInfo:TableInfo = _
-  var fileInfo:FileInfo = _
   var logBuilder:LogBuilder = _
-
+  var fileInfo:FileInfo = _
   var fieldDelimiter = "\001"
 
   def load(fileReadStageRequest:FileReadStageRequest)(implicit stageAppContext: StageAppContext): Unit ={
+    this.stageAppContext = stageAppContext;
     sparkContext = stageAppContext.sparkContext
     jobConfig = stageAppContext.jobConfig
     sqlContext = stageAppContext.sqlContext
     logBuilder = stageAppContext.constructLogBuilder()
     this.fileInfo = fileReadStageRequest.fileInfos.get(0)
-    tableInfo = loadTableInfo(fileInfo)
-    tableInfo.targetName = fileReadStageRequest.stageId
-
-
-    stageAppContext.addTable(tableInfo)
+    if(StringUtils.isNotEmpty(fileInfo.targetSeparator)){
+      this.fieldDelimiter = fileInfo.targetSeparator
+    }
+    if(StringUtils.isNotEmpty(fileInfo.xmlPath)) {
+      tableInfo = loadTableInfo(fileInfo)
+      tableInfo.targetName = fileReadStageRequest.stageId
+    }else{
+      tableInfo = fileReadStageRequest.outputTable
+      tableInfo.srcSeparator = fileInfo.targetSeparator
+    }
     val df = loadFile
-    stageAppContext.addDataSet(tableInfo,df)
+
+    val outPutTable = new TableInfo
+    outPutTable.targetName = tableInfo.targetName
+    outPutTable.body = new IFFSection
+    outPutTable.body.fields = tableInfo.body.fields.filter(!_.filter)
+    this.stageAppContext.addTable(outPutTable)
+    this.stageAppContext.addDataSet(outPutTable,df)
   }
 
   def loadFile(): DataFrame
@@ -56,10 +68,10 @@ abstract class FileLoader extends Serializable{
     val fieldDelimiter = this.fieldDelimiter
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
     val basePk2Map= (x:String) => {
-      val rowData = x.split(fieldDelimiter)
+      val rowData = StringUtils.splitByWholeSeparator(x,fieldDelimiter)
       val array = new ArrayBuffer[Any]
-      for(v<-rowData){
-        array += v
+      for(v<-0 until fields.size){
+        array += rowData(v)
       }
       Row.fromSeq(array)
     }
@@ -105,7 +117,6 @@ abstract class FileLoader extends Serializable{
       tableInfo.header = appContext.getBean("header", iffSectionClass)
       tableInfo.body = appContext.getBean("body", iffSectionClass)
       tableInfo.footer = appContext.getBean("footer", iffSectionClass)
-      //tableInfo.targetName = appContext.getBean("TargetTable").asInstanceOf[String]
     }
     catch {
       case e: BeansException =>
@@ -130,6 +141,10 @@ abstract class FileLoader extends Serializable{
         field.typeInfo = IFFFieldType.getFieldType(tableInfo,null,field)
       }
     }
+  }
+
+  protected def getErrorPath():String={
+    "%s/%s/%s/%s".format(jobConfig.tempDir,"errorRecs",stageAppContext.batchName,stageAppContext.currentStage.stageId)
   }
 
 }

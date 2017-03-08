@@ -13,8 +13,7 @@ import scala.beans.BeanProperty
 class SqlStageInfo extends StageInfo{
 
 
-  @BeanProperty
-  var outPutTable:TableInfo = _
+
 
   @BeanProperty
   var from:String = ""
@@ -39,7 +38,7 @@ class SqlStageInfo extends StageInfo{
       case StageType.Transformer => new TransformerStageRequest
       case StageType.Union => new UnionStageRequest
     }
-    sqlStageRequest.outPutTable = this.outPutTable
+    sqlStageRequest.outputTable = this.outPutTable
     sqlStageRequest.inputTables = this.inputTables
     sqlStageRequest.sorts = this.sorts
     sqlStageRequest.from = this.from

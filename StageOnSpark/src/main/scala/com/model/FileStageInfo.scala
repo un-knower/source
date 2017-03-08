@@ -1,6 +1,6 @@
 package com.model
 
-import com.context.{FileReadStageRequest, FileSaveStageRequest, StageAppContext, StageRequest}
+import com.context.{FileReadStageRequest, FileSaveStageRequest, StageAppContext, StageRequest,FileStageRequest}
 
 import scala.beans.BeanProperty
 
@@ -12,7 +12,7 @@ class FileStageInfo extends StageInfo{
   object OperationType extends Enumeration {
     val READ = "READ"
     val APPEND = "APPEND"
-    val OVERRIDE = "OVERRIDE"
+    val OVERWRITE = "OVERWRITE"
   }
 
   @BeanProperty
@@ -21,29 +21,24 @@ class FileStageInfo extends StageInfo{
   var fileInfos:java.util.List[FileInfo] = _
 
   def getStageRequest(implicit stageAppContext: StageAppContext):StageRequest={
-    val stageRequest = operationType match {
+    val request:FileStageRequest = operationType match {
       case OperationType.READ =>
-        val request = new FileReadStageRequest
-        request.fileInfos = fileInfos
-        request.stageId = stageId
-        request
+        new FileReadStageRequest
       case OperationType.APPEND =>
-        val request = new FileSaveStageRequest
-        request.fileInfos = fileInfos
-        request.inputTables = this.inputTables
-        request.cleanTargetPath = false
-        request.stageId = stageId
-        request
-      case OperationType.OVERRIDE =>
-        val request = new FileSaveStageRequest
-        request.fileInfos = fileInfos
-        request.inputTables = this.inputTables
-        request.cleanTargetPath = true
-        request.stageId = stageId
-        request
+        val re = new FileSaveStageRequest
+        re.cleanTargetPath = false
+        re
+      case OperationType.OVERWRITE =>
+        val re = new FileSaveStageRequest
+        re.cleanTargetPath = true
+        re
     }
-    stageRequest.debugInfo = debugInfo
-    stageRequest
+    request.fileInfos = fileInfos
+    request.inputTables = this.inputTables
+    request.debugInfo = debugInfo
+    request.stageId = stageId
+    request.outputTable = this.outPutTable
+    request
   }
 
 }

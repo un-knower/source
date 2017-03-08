@@ -18,7 +18,7 @@ class UnionStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
       throw StageInfoErrorException("Stage[%s]--UnionStage inputTable number must be more than two".format(sqlStageRequest.stageId))
     }
     var resultDF:DataFrame = null
-    val inputInfoMap = analysisInput(sqlStageRequest.outPutTable)
+    val inputInfoMap = analysisInput(sqlStageRequest.outputTable)
     var i:Int = 0
     val keys = inputInfoMap.keys.iterator
     while(keys.hasNext){
@@ -56,14 +56,14 @@ class UnionStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
 
 
   override protected def prepare(sqlStageRequest: SqlStageRequest):Boolean={
-    if(sqlStageRequest.outPutTable.body==null||sqlStageRequest.outPutTable.body.fields==null){
-      sqlStageRequest.outPutTable.body = appContext.getTable(sqlStageRequest.inputTables.get(0)).body
+    if(sqlStageRequest.outputTable.body==null||sqlStageRequest.outputTable.body.fields==null){
+      sqlStageRequest.outputTable.body = appContext.getTable(sqlStageRequest.inputTables.get(0)).body
     }
     super.prepare(sqlStageRequest)
   }
 
   override protected def fillOutPutTable(sqlStageRequest: SqlStageRequest):Unit = {
-    for(f<-sqlStageRequest.outPutTable.body.fields){
+    for(f<-sqlStageRequest.outputTable.body.fields){
       if(f.typeInfo==null){
         val cols =StringUtils.split(StringUtils.split(f.fieldExpression,",")(0),".")
         val sourceTableInfo = appContext.getTable(cols(0))

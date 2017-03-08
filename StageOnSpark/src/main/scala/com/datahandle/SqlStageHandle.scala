@@ -34,12 +34,12 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       }
       saveDebug(sqlStageRequest.debugInfo,resultDF)
     }
-    appContext.addDataSet(sqlStageRequest.outPutTable,resultDF)
-    appContext.addTable(sqlStageRequest.outPutTable)
+    appContext.addDataSet(sqlStageRequest.outputTable,resultDF)
+    appContext.addTable(sqlStageRequest.outputTable)
   }
 
   protected def prepare(sqlStageRequest: SqlStageRequest):Boolean={
-    loadFieldTypeInfo(sqlStageRequest.outPutTable)
+    loadFieldTypeInfo(sqlStageRequest.outputTable)
     fillOutPutTable(sqlStageRequest)
     true
   }
@@ -51,7 +51,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
 
   protected def fillOutPutTable(sqlStageRequest: SqlStageRequest):Unit = {
     val sourceTableInfo = appContext.getTable(sqlStageRequest.inputTables.get(0))
-    for (f <- sqlStageRequest.outPutTable.body.fields) {
+    for (f <- sqlStageRequest.outputTable.body.fields) {
       if (f.typeInfo == null) {
         val sourceField = sourceTableInfo.getBody.getFieldByName(f.fieldExpression)
         if (sourceField == null) {
@@ -66,7 +66,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
 
   protected def getSql(sqlStageRequest: SqlStageRequest):String={
     val sql = new StringBuffer(" select ")
-    val outPutFields = sqlStageRequest.outPutTable.body.fields
+    val outPutFields = sqlStageRequest.outputTable.body.fields
     var firstColF = true
     for(field<-outPutFields){
       if(!firstColF){

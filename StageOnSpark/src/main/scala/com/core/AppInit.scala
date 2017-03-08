@@ -41,7 +41,7 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
     logBuilder = appContext.constructLogBuilder()
     logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
     loadMetadata(jobConfig.metadataFilePath,jobConfig.metadataFileEncoding)
-    appContext = new StageAppContext(sparkContext,jobConfig)
+    appContext.batchName = batchInfo.batchJobName
     if(batchInfo.stages!=null){
       appContext.fistStage = batchInfo.stages.get(0)
       for(index<- 0 until batchInfo.stages.size()){

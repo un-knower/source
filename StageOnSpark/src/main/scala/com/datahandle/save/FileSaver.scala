@@ -3,7 +3,7 @@ package com.datahandle.save
 import com.boc.iff.DFSUtils
 import com.config.SparkJobConfig
 import com.context.StageAppContext
-import com.model.{FileInfo, FileStageInfo, TableInfo}
+import com.model.{FileInfo, TableInfo}
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.DataFrame
@@ -27,15 +27,13 @@ abstract class FileSaver extends Serializable{
     this.fileInfo = fileInfo
     val tmpPath = getTempPath(inputTable)
     val df = stageAppContext.getDataFrame(tableInfo)
-    /*val rc = df.count()
-    repartitionNumber = (rc/jobConfig.fileRecordNumber).toInt+1
-    println("***********************repartitionNumber="+repartitionNumber+"************")*/
+    implicit val hadoopConfig = sparkContext.hadoopConfiguration
+    DFSUtils.deleteDir(tmpPath)
     try{
       saveDataFrame(tmpPath,df)
       if(cleanTargetPath)cleanPath(fileInfo.dataPath)
       saveToTargetPath(tmpPath,fileInfo.dataPath)
     }finally {
-      implicit val hadoopConfig = sparkContext.hadoopConfiguration
       DFSUtils.deleteDir(tmpPath)
     }
 

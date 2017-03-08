@@ -1,14 +1,14 @@
 package com.datahandle
 
+import java.io.FileInputStream
 import java.util
-import java.util.StringTokenizer
-
+import java.util.{Properties, StringTokenizer}
 
 import com.boc.iff.CommonFieldConvertorContext
 import com.boc.iff.exception.StageInfoErrorException
 import com.boc.iff.model.IFFField
 import com.context.{SqlStageRequest, StageRequest}
-import com.datahandle.tran. FunctionExecutor
+import com.datahandle.tran.FunctionExecutor
 import com.model.TableInfo
 import org.apache.spark.sql.DataFrame
 
@@ -32,32 +32,42 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
 
     val inputTableInfo = appContext.getTable(sqlStageRequest.inputTables.get(0))
     val inputDF = appContext.getDataFrame(inputTableInfo)
-    val outputTable = sqlStageRequest.outPutTable
+    val outputTable = sqlStageRequest.outputTable
     for(field <- outputTable.body.fields){
       field.expression = replaceArgs(processMethod(field.fieldExpression))
       field.initExpression
     }
     val inputField = inputTableInfo.body.fields.filter(!_.filter)
     val fun = new FunctionExecutor
+    val errorNumber = appContext.sparkContext.accumulator(0, "TransformerErrorNumber")
+    val prop = new Properties
+    prop.load(new FileInputStream(appContext.jobConfig.configPath))
+
     val mapFun = (r:Row)=>{
-      import com.boc.iff.CommonFieldConvertorContext._
-      implicit val fieldConvertorContext = new CommonFieldConvertorContext(null,null,null)
-      val newData = new ArrayBuffer[String]
-      val valueObjectMap =  new util.HashMap[String,Any]
-      //把输入的一列装载到hashMap
-      for(index<-0 until inputField.length){
-        val fieldValue = if(r.get(index)!=null)r.get(index).toString else ""
-        valueObjectMap.put(inputField(index).name.toUpperCase(),inputField(index).toObject(fieldValue))
-      }
-      for(field <- outputTable.body.fields){
-        valueObjectMap.put("fn",fun)
-        newData+=field.objectToString(field.getValue(valueObjectMap))
-      }
-      Row.fromSeq(newData)
+        import com.boc.iff.CommonFieldConvertorContext._
+        implicit val fieldConvertorContext = new CommonFieldConvertorContext(null,null,null)
+        val newData = new ArrayBuffer[String]
+        val valueObjectMap =  new util.HashMap[String,Any]
+        //把输入的一列装载到hashMap
+        try {
+          for (index <- 0 until inputField.length) {
+            val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
+            valueObjectMap.put(inputField(index).name.toUpperCase(), inputField(index).toObject(fieldValue))
+          }
+          for (field <- outputTable.body.fields) {
+            valueObjectMap.put("fn", fun)
+            newData += field.objectToString(field.getValue(valueObjectMap))
+          }
+        }catch{
+          case t:Throwable=>errorNumber+=1
+        }
+        Row.fromSeq(newData)
     }
+
+    println("*****************TransformerErrorNumber:" + errorNumber)
     val newRdd = inputDF.map(mapFun)
     val structFields = new util.ArrayList[StructField]()
-    for (f <- sqlStageRequest.outPutTable.body.fields) {
+    for (f <- sqlStageRequest.outputTable.body.fields) {
       structFields.add(DataTypes.createStructField(f.name, DataTypes.StringType, true))
     }
     val structType = DataTypes.createStructType(structFields)

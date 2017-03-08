@@ -26,6 +26,8 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     logger
   }
 
+  var batchName:String = _
+
   var currentStage:StageInfo = _
 
   val sqlContext:SQLContext = new SQLContext(sparkContext)
@@ -39,6 +41,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
   var fistStage:StageInfo = _
 
   var batchArgs:Array[String] = jobConfig.batchArgs
+  
   var batchArgName:Array[String] = _
 
   def checkTableExist(table:String):Boolean={

@@ -6,12 +6,15 @@ import java.util.List
 /**
   * Created by scutlxj on 2017/2/9.
   */
-class FileReadStageRequest extends StageRequest{
+class FileStageRequest extends StageRequest{
   var fileInfos:List[FileInfo] = _
 }
 
-class FileSaveStageRequest extends StageRequest{
+class FileReadStageRequest extends FileStageRequest{
+
+}
+
+class FileSaveStageRequest extends FileStageRequest{
   var cleanTargetPath:Boolean = false
-  var fileInfos:List[FileInfo] = _
 
 }
