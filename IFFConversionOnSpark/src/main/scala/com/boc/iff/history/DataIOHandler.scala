@@ -19,17 +19,15 @@ trait DataReader {
   protected val bgDTName:String = "begin_date"
   protected val edDTName:String = "end_date"
 
-  def getInc(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
-    ???
-  }
-
-  def getHis(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
-    ???
-  }
+  //缺省返回null，在具体格式的Reader中重写实现
+  def getInc(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={null}
+  //缺省返回null，在具体格式的Reader中重写实现
+  def getHis(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={null}
 
 }
 
 trait TextDateReader extends DataReader{
+
   override def getInc(filePath:String,iffMetadata: IFFMetadata,sqlContext: SQLContext,fieldSeparator:String):DataFrame={
     val sparkContext = sqlContext.sparkContext
     val fileSystem = FileSystem.get(sparkContext.hadoopConfiguration)
@@ -137,13 +135,10 @@ trait ParquetDateReader extends DataReader{
 }
 
 trait DataWriter{
-  def writeData(df:DataFrame,filePath:String,fieldSeparator:String): Unit={
-
-  }
-
-  def saveToTarget(sourcePath: String,targetPath:String,sparkContext:SparkContext): Unit={
-
-  }
+   //缺省返回空方法，在具体格式的Writer中重写实现
+  def writeData(df:DataFrame,filePath:String,fieldSeparator:String): Unit={}
+  //缺省返回空方法，在具体格式的Writer中重写实现
+  def saveToTarget(sourcePath: String,targetPath:String,sparkContext:SparkContext): Unit={}
 }
 
 trait TextDataWriter extends DataWriter{

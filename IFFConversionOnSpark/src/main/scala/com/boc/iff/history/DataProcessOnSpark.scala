@@ -13,7 +13,7 @@ class HistoryProcessOnSparkConfig extends DataProcessConfig with SparkJobConfig 
 
 }
 
-class HistoryProcessOnSparkJob
+abstract class HistoryProcessOnSparkJob
   extends HistoryProcess[DataProcessOnSparkConfig,DataFrame] with SparkJob[DataProcessOnSparkConfig] with DataReader with DataWriter {
 
   protected var sqlContext:SQLContext = null
@@ -72,7 +72,7 @@ class HistoryProcessOnSparkJob
   }
 
   /**
-   * 检查参数中定义的 配置文件、XML 元数据文件和 IFF 文件是否存在
+   * 检查参数中定义的 配置文件、XML 元数据文件是否存在
    *
    * @return
    */
@@ -86,28 +86,22 @@ class HistoryProcessOnSparkJob
     }
   }
 
-
-  override protected def openFile(fileName: String) = {
-      ???
-  }
-
-
   /**
    * 准备阶段
    *
    * @return
    */
   override protected def prepare(): Boolean = {
-    var result = super.prepare()
-    if(result){
-      try{
-        sqlContext = new SQLContext(this.sparkContext)
-      }catch {
-        case e:Exception => result = false
-      }
-    }
-    result
-  }
+       var result = super.prepare()
+       if(result){
+         try{
+           sqlContext = new SQLContext(this.sparkContext)
+         }catch {
+           case e:Exception => result = false
+         }
+       }
+       result
+     }
 
   /**
    * 注册使用 kryo 进行序列化的类
@@ -155,14 +149,10 @@ class HistoryProcessOnSparkJob
     getHis(fileName,iffMetadata,sqlContext,fieldDelimiter)
   }
 
-  override def diffHistoryAndIncrease(increase:DataFrame,history:DataFrame,iffMetadata: IFFMetadata):(DataFrame,DataFrame)={
-    ???
-  }
 
-  override def closeHistory(close:DataFrame): Unit={
-    ???
-  }
-
+  /**
+   * 写拉链历史数据到目标目录
+   */
   override def appendHistory(closeDF:DataFrame,openDF:DataFrame): Unit={
     val tmp = getTempDir(dataProcessConfig.fTableName)
     logger.info(MESSAGE_ID_CNV1001,"clean tmp table")
