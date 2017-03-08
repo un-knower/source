@@ -125,9 +125,6 @@ trait HistoryProcess[T<:DataProcessConfig,D] {
     }
   }
 
-
-  protected def openFile(fileName: String): D
-
   /**
    * 解析 XML 元数据文件
    *
@@ -225,8 +222,6 @@ trait HistoryProcess[T<:DataProcessConfig,D] {
   protected def getHistory(fileName: String,iffMetadata: IFFMetadata): D
 
   protected def diffHistoryAndIncrease(increase:D,history:D,iffMetadata: IFFMetadata): (D,D)
-
-  protected def closeHistory(close:D): Unit
 
   protected def appendHistory(closeDF:D,openDF:D): Unit
 
