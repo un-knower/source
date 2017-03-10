@@ -4,10 +4,10 @@ import java.io.{File, FileInputStream}
 import java.util.Properties
 
 import com.boc.iff._
-import com.boc.iff.exception.StageHandleException
+import com.boc.iff.exception.{StageHandleException, StageInfoErrorException}
 import com.boc.iff.model._
 import com.config.SparkJobConfig
-import com.context.StageAppContext
+import com.context.{StageAppContext, StageEngine}
 import com.log.LogBuilder
 import com.model.BatchInfo
 import org.apache.commons.io.FileUtils
@@ -30,7 +30,7 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
   /**
    * 执行整个作业
    */
-  protected def run(jobonfig: T): Unit = {
+  protected def run(jobConfig: T): Unit = {
     if(!prepare()) return
     val controller = new AppController
     controller.execute(appContext)
@@ -42,12 +42,11 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
     logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
     loadMetadata(jobConfig.metadataFilePath,jobConfig.metadataFileEncoding)
     appContext.batchName = batchInfo.batchJobName
+    appContext.stageEngine = new StageEngine(batchInfo.stages)
     if(batchInfo.stages!=null){
-      appContext.fistStage = batchInfo.stages.get(0)
-      for(index<- 0 until batchInfo.stages.size()){
-        val stage = batchInfo.stages.get(index)
-        appContext.stagesMap.put(stage.stageId,stage)
-      }
+      appContext.stageEngine = new StageEngine(batchInfo.stages)
+    }else{
+      throw new StageInfoErrorException("No stage defined")
     }
 
     val batchArgNameSize = if(batchInfo.batchArgNames==null) 0 else batchInfo.batchArgNames.size()
@@ -69,9 +68,10 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
       System.setProperty("scala.concurrent.context.numThreads", String.valueOf(jobConfig.iffNumberOfThread))
       System.setProperty("scala.concurrent.context.maxThreads", String.valueOf(jobConfig.iffNumberOfThread))
     }
-    println("************************ version time 2017-02-23 16:00 ***************************")
+    println("************************ version time 2017-03-10 17:00 ***************************")
     true
   }
+
 
 
   /**
@@ -119,9 +119,9 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
       classOf[IFFFieldType], classOf[FormatSpec], classOf[ACFormat], classOf[StringAlign])
   }
 
-  override protected def runOnSpark(jobonfig: T): Unit = {
-    this.jobConfig = jobonfig
-    run(jobonfig)
+  override protected def runOnSpark(jobConfig: T): Unit = {
+    this.jobConfig = jobConfig
+    run(jobConfig)
   }
 
 }

@@ -9,6 +9,6 @@ class LogBean {
   var threadID:String=""
   var msg:String=""
   def toLogMsg()={
-    "HOSTNAME="+hostName+"|JOBID="+jobID+"|THREADID="+threadID+"|MESSAGE="+msg+";"
+    "HOSTNAME="+hostName+"|JOBID="+jobID+"|THREADID="+threadID+"|MESSAGE="+msg
   }
 }

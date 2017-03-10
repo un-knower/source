@@ -45,7 +45,7 @@ class LogBuilder(val logger:ECCLogger){
 
   def error(msg:String):Unit={
     logBean.msg=msg
-    logger.error(MESSAGE_ID_CNV1001,logBean.toLogMsg())
+    logger.error("**ERROR**",logBean.toLogMsg())
   }
 
   def getHostName:String={

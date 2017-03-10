@@ -28,17 +28,13 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
 
   var batchName:String = _
 
-  var currentStage:StageInfo = _
+  var stageEngine:StageEngine = _
 
   val sqlContext:SQLContext = new SQLContext(sparkContext)
 
   private val tablesMap:ConcurrentHashMap[String,TableInfo] = new ConcurrentHashMap[String,TableInfo]
 
   private val dataSetObjectMap:ConcurrentHashMap[String,DataFrame] = new ConcurrentHashMap[String,DataFrame]
-
-  val stagesMap:HashMap[String,StageInfo] = new HashMap[String,StageInfo]
-
-  var fistStage:StageInfo = _
 
   var batchArgs:Array[String] = jobConfig.batchArgs
   
@@ -56,7 +52,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     if(tablesMap.containsKey(table)){
       tablesMap.get(table)
     }else{
-      throw TableLoadException("Stage[%s] | Table[%s] can not be found,check if it loaded".format(currentStage.stageId,table))
+      throw TableLoadException("Stage[%s] | Table[%s] can not be found,check if it loaded".format(stageEngine.currentStage().stageId,table))
     }
   }
 
@@ -69,7 +65,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     if(dataSetObjectMap.containsKey(tableInfo.targetName)){
       dataSetObjectMap.get(tableInfo.targetName)
     }else{
-      throw TableLoadException("Stage[%s] | Table[%s] can not be found,check if it loaded".format(currentStage.stageId,tableInfo.targetName))
+      throw TableLoadException("Stage[%s] | Table[%s] can not be found,check if it loaded".format(stageEngine.currentStage().stageId,tableInfo.targetName))
     }
   }
 
@@ -77,7 +73,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     if(dataSetObjectMap.containsKey(table)){
       dataSetObjectMap.get(table)
     }else{
-      throw TableLoadException("Stage[%s] | Table[%s] can not be found，check if it loaded".format(currentStage.stageId,table))
+      throw TableLoadException("Stage[%s] | Table[%s] can not be found，check if it loaded".format(stageEngine.currentStage().stageId,table))
     }
   }
 

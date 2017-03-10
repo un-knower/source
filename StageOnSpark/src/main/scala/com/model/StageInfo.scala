@@ -27,6 +27,8 @@ abstract class StageInfo extends Serializable {
   @BeanProperty
   var outPutTable:TableInfo = _
 
+  var depth:Int = 1
+
 
   def getStageRequest(implicit stageAppContext: StageAppContext):StageRequest
 }

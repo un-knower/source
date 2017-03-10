@@ -53,11 +53,11 @@ abstract class FileLoader extends Serializable{
       tableInfo.srcSeparator = fileInfo.targetSeparator
     }
     val df = loadFile
-
+    df.first()
     val outPutTable = new TableInfo
     outPutTable.targetName = tableInfo.targetName
     outPutTable.body = new IFFSection
-    outPutTable.body.fields = tableInfo.body.fields.filter(!_.filter)
+    outPutTable.body.fields = tableInfo.body.fields.filter(!_.filter).map(x=>{x.name = x.name.toUpperCase;x})
     this.stageAppContext.addTable(outPutTable)
     this.stageAppContext.addDataSet(outPutTable,df)
   }
@@ -68,7 +68,7 @@ abstract class FileLoader extends Serializable{
     val fieldDelimiter = this.fieldDelimiter
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
     val basePk2Map= (x:String) => {
-      val rowData = StringUtils.splitByWholeSeparator(x,fieldDelimiter)
+      val rowData = StringUtils.splitByWholeSeparatorPreserveAllTokens(x,fieldDelimiter)
       val array = new ArrayBuffer[Any]
       for(v<-0 until fields.size){
         array += rowData(v)
@@ -77,7 +77,7 @@ abstract class FileLoader extends Serializable{
     }
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
-      structFields.add(DataTypes.createStructField(f.name, DataTypes.StringType, true))
+      structFields.add(DataTypes.createStructField(f.name.toUpperCase, DataTypes.StringType, true))
     }
     val structType = DataTypes.createStructType(structFields)
     val rddN = rdd.map(basePk2Map)
@@ -144,7 +144,7 @@ abstract class FileLoader extends Serializable{
   }
 
   protected def getErrorPath():String={
-    "%s/%s/%s/%s".format(jobConfig.tempDir,"errorRecs",stageAppContext.batchName,stageAppContext.currentStage.stageId)
+    "%s/%s/%s/%s".format(jobConfig.tempDir,"errorRecs",stageAppContext.batchName,stageAppContext.stageEngine.currentStage().stageId)
   }
 
 }

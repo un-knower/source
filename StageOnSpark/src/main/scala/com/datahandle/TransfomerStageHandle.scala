@@ -2,17 +2,16 @@ package com.datahandle
 
 import java.io.FileInputStream
 import java.util
-import java.util.{Properties, StringTokenizer}
+import java.util.{Properties}
 
-import com.boc.iff.CommonFieldConvertorContext
+import com.boc.iff.{CommonFieldConvertorContext, ECCLogger}
 import com.boc.iff.exception.StageInfoErrorException
-import com.boc.iff.model.IFFField
 import com.context.{SqlStageRequest, StageRequest}
 import com.datahandle.tran.FunctionExecutor
-import com.model.TableInfo
+import com.log.LogBuilder
 import org.apache.spark.sql.DataFrame
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.types.{DataTypes, StructField}
 
@@ -39,39 +38,65 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     }
     val inputField = inputTableInfo.body.fields.filter(!_.filter)
     val fun = new FunctionExecutor
-    val errorNumber = appContext.sparkContext.accumulator(0, "TransformerErrorNumber")
+    val stageId = sqlStageRequest.stageId
+    val errorRcNumber = appContext.sparkContext.accumulator(0, "%s_TransformerErrorRec".format(stageId))
     val prop = new Properties
     prop.load(new FileInputStream(appContext.jobConfig.configPath))
+    val applicationId = appContext.sparkContext.applicationId
+    val mapFun:(Iterator[Row] => Iterator[Row])= { rows=>
+      import com.boc.iff.CommonFieldConvertorContext._
+      implicit val fieldConvertorContext = new CommonFieldConvertorContext(null, null, null)
 
-    val mapFun = (r:Row)=>{
-        import com.boc.iff.CommonFieldConvertorContext._
-        implicit val fieldConvertorContext = new CommonFieldConvertorContext(null,null,null)
+      val logger = new ECCLogger()
+      logger.configure(prop)
+      val logBuilder = new LogBuilder(logger)
+      logBuilder.setLogJobID(applicationId)
+      logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
+
+      val recordList = ListBuffer[Row]()
+      while(rows.hasNext){
+        val r = rows.next()
         val newData = new ArrayBuffer[String]
-        val valueObjectMap =  new util.HashMap[String,Any]
-        //把输入的一列装载到hashMap
+        val valueObjectMap = new util.HashMap[String, Any]
+        for (index <- 0 until inputField.length) {
+          val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
+          valueObjectMap.put(inputField(index).name.toUpperCase(), inputField(index).toObject(fieldValue))
+        }
+        var express = ""
         try {
-          for (index <- 0 until inputField.length) {
-            val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
-            valueObjectMap.put(inputField(index).name.toUpperCase(), inputField(index).toObject(fieldValue))
-          }
           for (field <- outputTable.body.fields) {
             valueObjectMap.put("fn", fun)
+            express = field.fieldExpression
             newData += field.objectToString(field.getValue(valueObjectMap))
           }
-        }catch{
-          case t:Throwable=>errorNumber+=1
+          recordList += Row.fromSeq(newData)
+        }catch {
+          case t:Throwable=>
+            val data = new StringBuffer()
+            for (index <- 0 until inputField.length) {
+              val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
+              data.append(inputField(index).name.toUpperCase()).append("=").append(fieldValue).append("|")
+            }
+            logBuilder.error("Stage[%s]-{Expression[%s],Date[%s]} Error Msg{%s}".format(stageId,express,data.toString,t.getMessage))
+            errorRcNumber += 1
         }
-        Row.fromSeq(newData)
+      }
+      recordList.iterator
     }
-
-    println("*****************TransformerErrorNumber:" + errorNumber)
-    val newRdd = inputDF.map(mapFun)
+    val newRdd = inputDF.mapPartitions(mapFun)
     val structFields = new util.ArrayList[StructField]()
     for (f <- sqlStageRequest.outputTable.body.fields) {
       structFields.add(DataTypes.createStructField(f.name, DataTypes.StringType, true))
     }
     val structType = DataTypes.createStructType(structFields)
-    appContext.sqlContext.createDataFrame(newRdd,structType)
+    val df = appContext.sqlContext.createDataFrame(newRdd,structType)
+    try{
+      df.first()
+    }catch {
+      case t:Throwable=>
+    }
+    logBuilder.info("Stage[%s]-Transformer Error Rec[%s]".format(sqlStageRequest.stageId,errorRcNumber))
+    df
   }
 
   protected def processMethod(express:String):String={
@@ -107,37 +132,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     }
     exp
   }
-}
-class TransformerInfo(val stageId:String) extends Serializable{
-  var filed:IFFField = _
-  var method:String = ""
-  var params:ArrayBuffer[String] = new ArrayBuffer[String]
-  var dataIndex:Int = _
-  var needTran:Boolean = false
-  def buildInfo(outputField:IFFField,inputTable:TableInfo):TransformerInfo={
-    val exp = outputField.fieldExpression
-    var fieldName:String = ""
-    if(exp.indexOf("(")>=0) {
-      needTran = true
-      val stringTokenizer = new StringTokenizer(exp, "(,)")
-      method = stringTokenizer.nextToken().toLowerCase
-      fieldName = stringTokenizer.nextToken()
-      if(stringTokenizer.hasMoreTokens){
-        params+=stringTokenizer.nextToken()
-      }
-    }else{
-      fieldName = exp
-    }
-    filed = inputTable.body.getFieldByName(fieldName)
-    if(filed==null){
-      throw StageInfoErrorException("Stage[%s]--%s not exists ".format(stageId,fieldName))
-    }
-    dataIndex = inputTable.body.fields.filter(!_.filter).indexOf(filed)
-    if(dataIndex<0){
-      throw StageInfoErrorException("Stage[%s]--%s not exists ".format(stageId,fieldName))
-    }
-    this
-  }
+
 
 
 

@@ -1,9 +1,8 @@
 package com.core
 
 import com.boc.iff.exception.BaseException
-import com.context.{StageAppContext, _}
+import com.context._
 import com.datahandle.StageHandle
-import org.apache.commons.lang3.StringUtils
 
 /**
  * Created by cvinc on 2016/6/8.
@@ -13,15 +12,11 @@ class AppController {
     implicit val stageAppContext = context
     val logBuilder = stageAppContext.constructLogBuilder()
     logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
-    var stageInfo = stageAppContext.fistStage
-    logBuilder.info("first stage of the job [%s]".format(stageInfo.stageId))
-    var finishStageNumber:Int = 0
-    val totalStageNumber:Int = stageAppContext.stagesMap.size()
-    do{
-      logBuilder.info("handling Stage["+stageInfo.stageId+"],Stage[Total:"+totalStageNumber+",Finish:"+finishStageNumber+"]")
+    while(context.stageEngine.hasMoreStage()){
+      val stageInfo = context.stageEngine.nextStage()
+      logBuilder.info("handling Stage["+stageInfo.stageId+"]")
       val request: StageRequest = stageInfo.getStageRequest
       val executeHandle = findHandle(request)
-      stageAppContext.currentStage = stageInfo
       try {
         executeHandle.doCommand(request)
       }catch {
@@ -30,13 +25,7 @@ class AppController {
           logBuilder.error("Error case when handling Stage["+stageInfo.stageId+"]")
           throw t
       }
-      if(StringUtils.isNotEmpty(stageInfo.nextStageId)){
-        stageInfo = stageAppContext.stagesMap.get(stageInfo.nextStageId)
-      }else{
-        stageInfo = null
-      }
-      finishStageNumber+=1
-    }while(stageInfo!=null)
+    }
   }
 
   def findHandle(request: StageRequest) = {

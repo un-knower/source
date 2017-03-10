@@ -30,6 +30,11 @@ class UnionStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
       }
       i+=1
     }
+    try {
+      resultDF.first()
+    }catch{
+      case t:Throwable =>
+    }
     resultDF
   }
 
