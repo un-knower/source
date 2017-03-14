@@ -5,7 +5,7 @@ import com.fsm.model._
 
 /**
   * Created  by xp on 2017/2/22
-  * Modified by xp on 017/2/23
+  * Modified by xp on 2017/2/23
   */
 abstract class FSMBase {
 
