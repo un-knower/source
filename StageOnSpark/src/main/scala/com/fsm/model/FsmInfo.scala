@@ -4,7 +4,7 @@ import scala.util.control._
 
 /**
   * Created by xp on 2017/2/23
-  * Modified by xp on 017/2/23
+  * Modified by xp on 2017/2/23
   */
 class FsmInfo(id:String,name:String) extends Serializable{
   //@BeanProperty

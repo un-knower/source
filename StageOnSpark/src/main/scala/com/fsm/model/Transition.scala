@@ -2,7 +2,7 @@ package com.fsm.model
 
 /**
   * Created by xp on 2017/2/15
-  * Modified by xp on 017/2/22
+  * Modified by xp on 2017/2/22
   */
 class Transition(id:String,name:String,state:State) extends Serializable{
 

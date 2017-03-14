@@ -4,7 +4,7 @@ import scala.util.control._
 
 /**
   * Created by xp on 2017/2/15
-  * Modified by xp on 017/2/22
+  * Modified by xp on 2017/2/22
   */
 class State(id:String,name:String) extends Serializable{
 
