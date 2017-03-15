@@ -39,8 +39,7 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
       val hisSql = new StringBuffer(" select ")//历史的查询语句
       val newOpen = new StringBuffer(" select ")//新打开的查询语句
       val condition = new StringBuffer(" ")//关联条件
-      val diffCondition1 = new StringBuffer(" ")
-      val diffCondition2 = new StringBuffer(" ")
+      val diffCondition = new StringBuffer(" 1=1 ")
       var index = 0
       for(f<-fields){
         if(index>0){
@@ -63,25 +62,21 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
       }
       index = 0
       for(f<-diffFields){
-        if(index>0){
-          diffCondition1.append(" or ")
-          diffCondition2.append(" and ")
-        }
-        diffCondition1.append(" h"+f.getName+" != i"+f.getName)
-        diffCondition2.append(" h"+f.getName+"  = i"+f.getName)
+        diffCondition.append(" or ")
+        diffCondition.append(" h"+f.getName+" != i"+f.getName)
         index+=1
       }
       hisSql.append(",h."+this.beginDTName+" as fBeginDT,h."+this.endDTName+" as fEndDT,i."+primaryKeys(0).name+" as incKey from hist h left join inc i on ")
       hisSql.append(condition)
       val hisDF = sqlContext.sql(hisSql.toString)
       hisDF.cache()
-      var closeDF = hisDF.filter("incKey is not null  and (("+diffCondition1+"))").selectExpr("*","fBeginDT as "+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
+      var closeDF = hisDF.filter("incKey is not null  and (("+diffCondition+"))").selectExpr("*","fBeginDT as "+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
       for(f<-fields){
         closeDF = closeDF.drop("i"+f.getName)
       }
-      var stillOpenDF1 = hisDF.filter("incKey is not null  and (("+diffCondition2+"))").selectExpr("*","fBeginDT as "+this.beginDTName,"'"+lastAcDate+"' as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
+      var stillOpenDF1 = hisDF.filter("incKey is not null").selectExpr("*","fBeginDT as "+this.beginDTName,"fEndDT as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
       for(f<-fields){
-        stillOpenDF1 = stillOpenDF1.drop("i"+f.getName)
+        stillOpenDF1 = stillOpenDF1.drop("h"+f.getName)
       }
       var stillOpenDF2 = hisDF.filter("incKey is null ").selectExpr("*","fBeginDT as "+this.beginDTName,"fEndDT as "+this.endDTName).drop("incKey").drop("fBeginDT").drop("fEndDT")
       for(f<-fields){
