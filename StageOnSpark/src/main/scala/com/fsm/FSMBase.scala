@@ -9,7 +9,7 @@ import com.fsm.model._
   */
 abstract class FSMBase {
 
-  protected var treeHashFsm = Map[String,Map[String,List[Transition]]]]()
+  protected var treeHashFsm = Map[String,Map[String,Map[String,List[Transition]]]]()
 
   //构建Tree+Hash结构状态机
   def buildTreeHashFsm(processList : List[Process]){
