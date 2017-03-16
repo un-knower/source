@@ -4,6 +4,7 @@ import com.boc.iff.{DFSUtils, IFFUtils}
 import com.boc.iff.IFFConversion._
 import com.boc.iff.itf.DataProcessOnSparkConfig
 import com.boc.iff.model._
+import com.boc.iff.exception._
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.sql.DataFrame
@@ -20,6 +21,7 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
     val fields = iffMetadata.getBody.fields.filter(!_.filter)
     val diffFields = iffMetadata.getBody.fields.filter(_.diffField)
     val acDate = IFFUtils.dateToString(dataProcessConfig.accountDate)
+    val newOpen = new StringBuffer(" select ")//新打开的查询语句
     if(history==null){//单表增量转拉链历史      val newOpen = new StringBuffer(" select ")
       var index = 0
       for(f<-fields){
@@ -38,7 +40,6 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
       val lastAcDate = IFFUtils.addDays(acDate,-1)
       history.registerTempTable("hist")
       val hisSql = new StringBuffer(" select ")//历史的查询语句
-      val newOpen = new StringBuffer(" select ")//新打开的查询语句
       val condition = new StringBuffer(" ")//关联条件
       val diffCondition = new StringBuffer(" ")
       var index = 0
@@ -64,7 +65,7 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
       index = 0
       for(f<-diffFields){
         if(index>0){
-          iffCondition.append(" or ")
+          diffCondition.append(" or ")
         }
         diffCondition.append(" h"+f.getName+" != i"+f.getName)
         index+=1
@@ -102,7 +103,7 @@ class F2FHistoryOnSparkJob  extends HistoryProcessOnSparkJob with Serializable {
  */
 object F2FHistoryOnSpark extends App {
   val config = new DataProcessOnSparkConfig()
-  val job = new F2FHistoryOnSparkJob() with ParquetDateReader with ParquetDataWriter
+  val job = new F2FHistoryOnSparkJob() with TextDateReader with TextDataWriter
   val logger = job.logger
   try {
     job.start(config, args)
