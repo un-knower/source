@@ -1,6 +1,7 @@
 package com.boc.iff.history
 
 import java.io.File
+import org.apache.commons.lang3.StringUtils
 
 import com.boc.iff.IFFConversion._
 import com.boc.iff.itf.DataProcessOnSparkConfig
@@ -122,7 +123,7 @@ abstract class HistoryProcessOnSparkJob
   override protected def run(config: DataProcessOnSparkConfig): Unit = {
     this.dataProcessConfig = config
     if (!prepare()) return
-    if(dbManagers.nonEmpty){
+    if(dbManagers.nonEmpty&&StringUtils.isNotEmpty(dataProcessConfig.dbName)){
       for(dbManager<-dbManagers){
         dbManager.patchIFFConversionConfig(config)
       }
