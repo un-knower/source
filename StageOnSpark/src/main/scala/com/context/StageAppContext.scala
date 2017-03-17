@@ -2,13 +2,13 @@ package com.context
 
 import java.io.FileInputStream
 import java.util.concurrent.ConcurrentHashMap
-import java.util.{HashMap, Properties}
+import java.util.Properties
 
 import com.boc.iff.ECCLogger
 import com.boc.iff.exception.TableLoadException
 import com.config.SparkJobConfig
 import com.log.LogBuilder
-import com.model.{StageInfo, TableInfo}
+import com.model.TableInfo
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, SQLContext}
 
@@ -57,6 +57,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
   }
 
   def addTable(table:TableInfo):TableInfo={
+    table.remainUsedTimes = stageEngine.getTableUsedTime(table.targetName)
     tablesMap.put(table.targetName,table)
   }
 
@@ -81,6 +82,16 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
   def addDataSet(tableInfo:TableInfo,dataSet:DataFrame): Unit ={
     dataSetObjectMap.put(tableInfo.targetName,dataSet)
     dataSet.registerTempTable(tableInfo.targetName)
+    if(!tableInfo.cacheFlag){
+      logger.info("DataFrameManage","Cache DataFrame[%s]".format(tableInfo.targetName))
+      dataSet.cache()
+      tableInfo.cacheFlag = true
+    }
+  }
+
+  def unCacheDataFrame(table:String): Unit ={
+    dataSetObjectMap.get(table).unpersist()
+    logger.info("DataFrameManage","UnCache DataFrame[%s]".format(table))
   }
 
   def constructLogBuilder():LogBuilder={

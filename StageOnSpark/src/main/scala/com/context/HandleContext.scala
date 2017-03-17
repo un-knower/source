@@ -13,6 +13,7 @@ object HandleContext {
     implicit object sortStageHandle extends SortStageHandle[SortStageRequest]
     implicit object unionStageHandle extends UnionStageHandle[UnionStageRequest]
     implicit object transformerStageHandle extends TransformerStageHandle[TransformerStageRequest]
+    implicit object deduplicateStageHandle extends DeduplicateStageHandle[DeduplicateStageRequest]
 
 
 

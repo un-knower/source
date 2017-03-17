@@ -68,7 +68,7 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
       System.setProperty("scala.concurrent.context.numThreads", String.valueOf(jobConfig.iffNumberOfThread))
       System.setProperty("scala.concurrent.context.maxThreads", String.valueOf(jobConfig.iffNumberOfThread))
     }
-    println("************************ version time 2017-03-10 17:00 ***************************")
+    println("************************ version time 2017-03-14 16:54 ***************************")
     true
   }
 
@@ -86,14 +86,26 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
     var metadataXml = FileUtils.readFileToString(metadataFile, encoding)
     metadataXml = StringUtils.replace(metadataXml, "com.boc.oms.model.", "com.boc.iff.model.")
     metadataXml = StringUtils.replace(metadataXml, "com.boc.isb.util.iff.", "com.boc.iff.")
-    val metadataXmlResource = new ByteArrayResource(metadataXml.getBytes(encoding))
-    val appContext = new GenericXmlApplicationContext()
+    var metadataXmlResource = new ByteArrayResource(metadataXml.getBytes(encoding))
+    var appContext = new GenericXmlApplicationContext()
     appContext.setValidating(false)
     appContext.load(metadataXmlResource)
     appContext.refresh()
     try {
       val batchClass = classOf[BatchInfo]
-       batchInfo = appContext.getBean("batchInfo", batchClass)
+      batchInfo = appContext.getBean("batchInfo", batchClass)
+      for(i<- 0 until batchInfo.batchArgNames.size() ){
+        val argString = "#"+batchInfo.batchArgNames.get(i)+"#"
+        metadataXml = StringUtils.replace(metadataXml,argString,jobConfig.batchArgs(i))
+      }
+
+      metadataXmlResource = new ByteArrayResource(metadataXml.getBytes(encoding))
+      appContext = new GenericXmlApplicationContext()
+      appContext.setValidating(false)
+      appContext.load(metadataXmlResource)
+      appContext.refresh()
+      batchInfo = appContext.getBean("batchInfo", batchClass)
+
       logBuilder.info("loadMetadata "+ metadataFileName+" Success")
     }
     catch {
@@ -104,6 +116,17 @@ class AppInit[T <: SparkJobConfig]  extends SparkJob[T]    {
         logBuilder.error(metadataFileName + " ClassNotFoundException.")
         throw e
     }
+  }
+
+  protected def replaceArgs(sql:String):String={
+    var processSql = sql
+    if(appContext.batchArgName!=null&&appContext.batchArgName.length>0){
+      for(i<- 0 until appContext.batchArgName.length ){
+        val argString = "#"+appContext.batchArgName(i)+"#"
+        processSql = StringUtils.replace(processSql,argString,appContext.batchArgs(i))
+      }
+    }
+    processSql
   }
 
 

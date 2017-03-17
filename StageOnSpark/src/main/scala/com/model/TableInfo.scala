@@ -11,6 +11,8 @@ class TableInfo extends IFFMetadata{
 
   var cacheFlag:Boolean = false
 
+  var remainUsedTimes:Int = 0
+
   @BeanProperty
   var targetName: String = ""
 

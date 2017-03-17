@@ -15,17 +15,28 @@ class StageEngine private(){
   private var stageInfos: List[StageInfo] = _
   private var currentProcessIndex: Int = -1
   private var nextIndex: Int = 0
+  private var tableUsedTime:mutable.HashMap[String,Int] = _
 
   def this(stageInfos: List[StageInfo]) = {
     this()
     this.stageInfos = stageInfos
     val stageMap: mutable.HashMap[String, StageInfo] = new mutable.HashMap[String, StageInfo]
+    tableUsedTime = new mutable.HashMap[String, Int]
     for (i <- 0 until stageInfos.size()) {
       val s = stageInfos.get(i)
       if (stageMap.contains(s.stageId)) {
         throw new StageInfoErrorException("StageID [%s] Duplicate Defined")
       }
       stageMap += (s.stageId -> s)
+      if(s.inputTables!=null&&s.inputTables.size()>0){
+        for(it<-0 until s.inputTables.size()){
+          if(tableUsedTime.contains(s.inputTables.get(it))){
+            tableUsedTime(s.inputTables.get(it))=tableUsedTime(s.inputTables.get(it))+1
+          }else{
+            tableUsedTime += (s.inputTables.get(it)->1)
+          }
+        }
+      }
     }
     analysisDepth(stageInfos.get(0), stageMap)
     Collections.sort(this.stageInfos, new Comparator[StageInfo] {
@@ -50,6 +61,10 @@ class StageEngine private(){
         }
       }
     }
+  }
+
+  def getTableUsedTime(tableName:String):Int = {
+    this.tableUsedTime(tableName)
   }
 
   def hasMoreStage():Boolean={

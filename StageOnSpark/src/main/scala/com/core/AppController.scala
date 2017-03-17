@@ -38,6 +38,7 @@ class AppController {
       case request: SortStageRequest => getHandle[SortStageRequest]()
       case request: UnionStageRequest => getHandle[UnionStageRequest]()
       case request: TransformerStageRequest => getHandle[TransformerStageRequest]()
+      case request: DeduplicateStageRequest => getHandle[DeduplicateStageRequest]()
     }
   }
 

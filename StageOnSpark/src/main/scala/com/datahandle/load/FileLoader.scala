@@ -35,31 +35,38 @@ abstract class FileLoader extends Serializable{
   var fileInfo:FileInfo = _
   var fieldDelimiter = "\001"
 
-  def load(fileReadStageRequest:FileReadStageRequest)(implicit stageAppContext: StageAppContext): Unit ={
+  def load(fileReadStageRequest:FileReadStageRequest)(implicit stageAppContext: StageAppContext): Unit = {
     this.stageAppContext = stageAppContext;
     sparkContext = stageAppContext.sparkContext
     jobConfig = stageAppContext.jobConfig
     sqlContext = stageAppContext.sqlContext
     logBuilder = stageAppContext.constructLogBuilder()
     this.fileInfo = fileReadStageRequest.fileInfos.get(0)
-    if(StringUtils.isNotEmpty(fileInfo.targetSeparator)){
+    if (StringUtils.isNotEmpty(fileInfo.targetSeparator)) {
       this.fieldDelimiter = fileInfo.targetSeparator
     }
-    if(StringUtils.isNotEmpty(fileInfo.xmlPath)) {
+    if (StringUtils.isNotEmpty(fileInfo.xmlPath)) {
       tableInfo = loadTableInfo(fileInfo)
       tableInfo.targetName = fileReadStageRequest.stageId
-    }else{
+    } else {
       tableInfo = fileReadStageRequest.outputTable
       tableInfo.srcSeparator = fileInfo.targetSeparator
+      if (tableInfo.body.fields.last.endPos != null) tableInfo.fixedLength = tableInfo.body.fields.last.endPos.toString
+      tableInfo.sourceCharset = fileInfo.sourceCharset
     }
+    loadFieldTypeInfo(tableInfo)
+
     val df = loadFile
     df.first()
     val outPutTable = new TableInfo
     outPutTable.targetName = tableInfo.targetName
     outPutTable.body = new IFFSection
-    outPutTable.body.fields = tableInfo.body.fields.filter(!_.filter).map(x=>{x.name = x.name.toUpperCase;x})
+    outPutTable.body.fields = tableInfo.body.fields.filter(!_.filter).map(x => {
+      x.name = x.name.toUpperCase;
+      x
+    })
     this.stageAppContext.addTable(outPutTable)
-    this.stageAppContext.addDataSet(outPutTable,df)
+    this.stageAppContext.addDataSet(outPutTable, df)
   }
 
   def loadFile(): DataFrame
@@ -127,7 +134,6 @@ abstract class FileLoader extends Serializable{
         throw e
     }
     tableInfo.dataLineEndWithSeparatorF = fileInfo.dataLineEndWithSeparatorF
-    loadFieldTypeInfo(tableInfo)
     tableInfo
   }
 

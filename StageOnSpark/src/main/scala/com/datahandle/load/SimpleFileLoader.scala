@@ -75,6 +75,7 @@ class SimpleFileLoader extends FileLoader{
     if(tableInfo.fixedLength!=null) {
       iffFileInfo.recordLength = math.max(iffFileInfo.recordLength, tableInfo.fixedLength.toInt)
     }
+    if(fileInfo.dataPath.endsWith("/"))fileInfo.dataPath=fileInfo.dataPath.substring(0,fileInfo.dataPath.lastIndexOf("/"))
     iffFileInfo.fileName = fileInfo.dataPath.substring(fileInfo.dataPath.lastIndexOf("/")+1)
   }
 
@@ -303,6 +304,9 @@ class SimpleFileLoader extends FileLoader{
     dataFileProcessor.lengthOfLineEnd = lengthOfLineEnd
     dataFileProcessor.iFFFileInfo = iffFileInfo
 
+    val pro = new Properties
+    pro.load(new FileInputStream(stageAppContext.jobConfig.configPath))
+
 
 
     val convertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = { blockPositionIterator =>
@@ -336,6 +340,9 @@ class SimpleFileLoader extends FileLoader{
           }
         }
       }
+
+      val logger = new ECCLogger()
+      logger.configure(pro)
 
       val configuration = new YarnConfiguration()
       for((key,value)<-hadoopConfigurationMap){
@@ -381,7 +388,7 @@ class SimpleFileLoader extends FileLoader{
                   fieldType match {
                     case fieldType: CInteger => dataMap.put(iffField.name ,currentValue.trim.toInt)
                     case fieldType: CDecimal => dataMap.put(iffField.name , currentValue.trim.toDouble)
-                    case _ => dataMap.put(iffField.name , currentValue.trim)
+                    case _ => dataMap.put(iffField.name , currentValue)
                   }
                 }else{
                   dataMap.put(iffField.name , "")
@@ -419,6 +426,7 @@ class SimpleFileLoader extends FileLoader{
               sb.setLength(0)
               sb.append(fields.reduceLeft(_+tableInfo.srcSeparator+_)).append(lineSplit).append(errorMessage).append(" ERROR")
             }
+            logger.info("EDFDdddd",sb.toString+"|")
             recordList += sb.toString
           }
         }

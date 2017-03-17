@@ -37,6 +37,7 @@ class SqlStageInfo extends StageInfo{
       case StageType.Sort => new SortStageRequest
       case StageType.Transformer => new TransformerStageRequest
       case StageType.Union => new UnionStageRequest
+      case StageType.Deduplicate => new DeduplicateStageRequest
     }
     sqlStageRequest.outputTable = this.outPutTable
     sqlStageRequest.inputTables = this.inputTables

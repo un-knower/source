@@ -32,6 +32,7 @@ abstract class FileSaver extends Serializable{
     try{
       saveDataFrame(tmpPath,df)
       if(cleanTargetPath)cleanPath(fileInfo.dataPath)
+      DFSUtils.createDir(fileInfo.dataPath)
       saveToTargetPath(tmpPath,fileInfo.dataPath)
     }finally {
       DFSUtils.deleteDir(tmpPath)

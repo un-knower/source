@@ -22,8 +22,30 @@ trait StageHandle[T<:StageRequest] {
     def doCommand(stRequest:StageRequest)(implicit  context:StageAppContext): Unit={
         appContext = context
         logBuilder = appContext.constructLogBuilder().setLogThreadID(Thread.currentThread().getId.toString)
+        before(stRequest)
         execute(stRequest)
+        after(stRequest)
     }
+
+    private def before(stRequest:StageRequest):Unit={
+        if(stRequest.inputTables!=null&&stRequest.inputTables.size()>0){
+            for(i<-0 until stRequest.inputTables.size() if(StringUtils.isNotBlank(stRequest.inputTables.get(i)))){
+                val table = appContext.getTable(stRequest.inputTables.get(i))
+                table.remainUsedTimes -= 1
+            }
+        }
+    }
+
+    private def after(stRequest:StageRequest):Unit={
+        if(stRequest.inputTables!=null&&stRequest.inputTables.size()>0){
+            for(i<-0 until stRequest.inputTables.size() if(StringUtils.isNotBlank(stRequest.inputTables.get(i)))){
+                val table = appContext.getTable(stRequest.inputTables.get(i))
+                if(table.remainUsedTimes == 0)appContext.unCacheDataFrame(table.targetName)
+            }
+        }
+    }
+
+
 
     def check(stRequest:StageRequest):Unit={
         if(stRequest.inputTables!=null&&(!stRequest.inputTables.isEmpty)){

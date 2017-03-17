@@ -46,7 +46,7 @@ case class IFFLeadingDecimal() extends IFFFieldType with IFFByteDecodeWithOutLin
 case class IFFBinary() extends IFFFieldType
 case class IFFInteger() extends IFFFieldType
 case class IFFDouble() extends IFFFieldType with IFFFormatable
-case class CString() extends IFFFieldType with IFFByteDecodeWithLineEsc with IFFFormatable with IFFNeedTrim with IFFMaxlengthType
+case class CString() extends IFFFieldType with IFFByteDecodeWithLineEsc with IFFFormatable with IFFMaxlengthType
 case class CDecimal() extends IFFFieldType with IFFByteDecodeWithLineEsc with IFFDecimalType with IFFFormatable
 case class CInteger() extends IFFFieldType with IFFByteDecodeWithLineEsc with IFFMaxlengthType
 case class CDate() extends IFFFieldType with IFFByteDecodeWithOutLineEsc with IFFDateTimeType with IFFFormatable

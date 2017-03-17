@@ -18,6 +18,7 @@ import org.apache.commons.lang.StringUtils
 class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IFFFileInfo, val decoder: CharsetDecoder) extends Serializable {
 
 
+
   private def convert[T <: IFFFieldType](fieldType: T, fieldValue:String)
                                         (implicit convertor: CommonFieldConvertor[T]): String = {
     convertor.convert(fieldType, fieldValue, decoder)
@@ -45,7 +46,8 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
     }else if(fieldValues.containsKey(iffField.name)){
       fieldValue = fieldValues.get(iffField.name).toString
     }
-    fieldType match {
+
+    val newValue = fieldType match {
       case fieldType@IFFDate() => convert(fieldType, fieldValue)
       case fieldType@IFFTime() => convert(fieldType, fieldValue)
       case fieldType@IFFTimestamp() => convert(fieldType, fieldValue)
@@ -81,6 +83,7 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
       case fieldType@CTimestamp() => convert(fieldType, fieldValue)
       case _ => convert(IFFString(), fieldValue)
     }
+    newValue
   }
 
   def toObject(iffField:IFFField,fieldValue:String):Any = {

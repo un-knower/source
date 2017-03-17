@@ -2,10 +2,10 @@ package com.datahandle
 
 import java.io.FileInputStream
 import java.util
-import java.util.{Properties}
+import java.util.Properties
 
 import com.boc.iff.{CommonFieldConvertorContext, ECCLogger}
-import com.boc.iff.exception.StageInfoErrorException
+import com.boc.iff.exception.{MaxErrorNumberException, StageInfoErrorException}
 import com.context.{SqlStageRequest, StageRequest}
 import com.datahandle.tran.FunctionExecutor
 import com.log.LogBuilder
@@ -20,8 +20,7 @@ import org.apache.spark.sql.types.{DataTypes, StructField}
   */
 class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
 
-  protected val functions = Array("TO_CHAR","TO_DATE","SUBSTRING","LENGTH","TO_UPPERCASE","TO_LOWERCASE")
-  protected val functionObjName = "fn"
+  protected val functions = Array("TO_CHAR","TO_DATE","SUBSTRING","LENGTH","TO_UPPERCASE","TO_LOWERCASE","TO_NUMBER","TRIM","LTRIM","RTRIM","REPLACE","CURRENT_DATE","CURRENT_MONTHEND","TRUNC","ROUND")
 
   override protected def handle(sqlStageRequest: SqlStageRequest):DataFrame={
     if(sqlStageRequest.inputTables.size()>1){
@@ -33,7 +32,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val inputDF = appContext.getDataFrame(inputTableInfo)
     val outputTable = sqlStageRequest.outputTable
     for(field <- outputTable.body.fields){
-      field.expression = replaceArgs(processMethod(field.fieldExpression))
+      field.expression = processMethod(field.fieldExpression)
       field.initExpression
     }
     val inputField = inputTableInfo.body.fields.filter(!_.filter)
@@ -43,6 +42,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val prop = new Properties
     prop.load(new FileInputStream(appContext.jobConfig.configPath))
     val applicationId = appContext.sparkContext.applicationId
+    val maxErrorNumber = 0
     val mapFun:(Iterator[Row] => Iterator[Row])= { rows=>
       import com.boc.iff.CommonFieldConvertorContext._
       implicit val fieldConvertorContext = new CommonFieldConvertorContext(null, null, null)
@@ -63,11 +63,12 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
           valueObjectMap.put(inputField(index).name.toUpperCase(), inputField(index).toObject(fieldValue))
         }
         var express = ""
+        valueObjectMap.put("fn", fun)
         try {
           for (field <- outputTable.body.fields) {
-            valueObjectMap.put("fn", fun)
             express = field.fieldExpression
-            newData += field.objectToString(field.getValue(valueObjectMap))
+            val value = if(valueObjectMap.containsKey(express))valueObjectMap.get(express) else field.getValue(valueObjectMap)
+            newData += field.objectToString(value)
           }
           recordList += Row.fromSeq(newData)
         }catch {
@@ -77,8 +78,12 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
               val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
               data.append(inputField(index).name.toUpperCase()).append("=").append(fieldValue).append("|")
             }
-            logBuilder.error("Stage[%s]-{Expression[%s],Date[%s]} Error Msg{%s}".format(stageId,express,data.toString,t.getMessage))
-            errorRcNumber += 1
+            logBuilder.error("Stage[%s]-{Expression[%s],Data[%s]} Error Msg{%s}".format(stageId,express,data.toString,t.getMessage))
+            if(maxErrorNumber==0){
+              throw t
+            }else {
+              errorRcNumber += 1
+            }
         }
       }
       recordList.iterator
@@ -95,13 +100,16 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     }catch {
       case t:Throwable=>
     }
-    logBuilder.info("Stage[%s]-Transformer Error Rec[%s]".format(sqlStageRequest.stageId,errorRcNumber))
+    if(errorRcNumber.value > maxErrorNumber){
+      throw new MaxErrorNumberException("Stage[%s]-Transformer Max Error Rec.Limit[%s],actually[%s]".format(sqlStageRequest.stageId,maxErrorNumber,errorRcNumber))
+    }
     df
   }
 
   protected def processMethod(express:String):String={
     var exp = express
-    for(f<-functions){
+    for(func<-functions){
+      val f = "FN."+func
       val e = exp.toUpperCase()
       var index = 0
       val ar = new ArrayBuffer[(Int, Int)]
@@ -118,7 +126,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
           if(i==0&&pos._1>0){
             rplExp.append(exp.substring(0,pos._1))
           }
-          rplExp.append(functionObjName).append(".").append(f.toLowerCase())
+          rplExp.append(f.toLowerCase())
           val curStr = if((i+1)<ar.size){
             exp.substring(pos._1+pos._2,ar(i+1)._1)
           }else{

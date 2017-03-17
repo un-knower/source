@@ -47,7 +47,7 @@ class FileInfo{
   @BeanProperty
   var metadataFileEncoding: String = "UTF-8"                                //XML 描述文件编码
   @BeanProperty
-  var targetName:String = ""
+  var sourceCharset:String = "UTF-8"
   @BeanProperty
   var fileType:String = ""
   @BeanProperty

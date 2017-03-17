@@ -34,8 +34,8 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       }
       saveDebug(sqlStageRequest.debugInfo,resultDF)
     }
-    appContext.addDataSet(sqlStageRequest.outputTable,resultDF)
     appContext.addTable(sqlStageRequest.outputTable)
+    appContext.addDataSet(sqlStageRequest.outputTable, resultDF)
   }
 
   protected def prepare(sqlStageRequest: SqlStageRequest):Boolean={
@@ -97,18 +97,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       sql.append(" order by ").append(sortStr)
     }
     logBuilder.info("Stage Sql["+sql.toString+"]")
-    replaceArgs(sql.toString)
-  }
-
-  protected def replaceArgs(sql:String):String={
-    var processSql = sql
-    if(appContext.batchArgName!=null&&appContext.batchArgName.length>0){
-      for(i<- 0 until appContext.batchArgName.length ){
-        val argString = "#"+appContext.batchArgName(i)+"#"
-        processSql = StringUtils.replace(processSql,argString,appContext.batchArgs(i))
-      }
-    }
-    processSql
+    sql.toString
   }
 
 

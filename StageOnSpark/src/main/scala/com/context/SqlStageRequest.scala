@@ -32,3 +32,5 @@ class UnionStageRequest extends SqlStageRequest
 class TransformerStageRequest extends SqlStageRequest
 
 class SortStageRequest extends SqlStageRequest
+
+class DeduplicateStageRequest extends SqlStageRequest

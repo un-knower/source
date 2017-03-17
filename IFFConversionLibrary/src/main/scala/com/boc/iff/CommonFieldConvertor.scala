@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils
 @annotation.implicitNotFound(msg = "No implicit IFFFieldConvertor defined for ${T}.")
 sealed trait CommonFieldConvertor[T<:IFFFieldType] {
 
+
   protected def convertFromString(fieldType: T, fieldValue: String): Any = fieldValue
 
   def convert(fieldType: T, fieldValue: String, decoder: CharsetDecoder): String = {
