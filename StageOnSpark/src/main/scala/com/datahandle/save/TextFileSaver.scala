@@ -29,6 +29,7 @@ class TextFileSaver extends FileSaver{
     /*if(rdd.getNumPartitions>repartitionNumber){
       rdd.repartition(repartitionNumber)
     }*/
+    df.write.format("").save("")
     rdd.saveAsTextFile(path)
   }
 

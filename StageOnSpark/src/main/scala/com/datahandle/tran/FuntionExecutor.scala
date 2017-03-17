@@ -50,14 +50,17 @@ class FunctionExecutor extends Serializable{
     }
   }
 
-  def to_char(value:Any,pattern:String*):String={
-    val ptn = if(pattern==null||pattern.length==0)"" else pattern(0)
-    val newValue = executeFunction("to_char",value,ptn)
+  def to_char(value:Any,pattern:String):String={
+    val newValue = executeFunction("to_char",value,pattern)
     if(newValue!=null){
       newValue.asInstanceOf[String]
     }else{
       null
     }
+  }
+
+  def to_char(value:Any):String={
+    to_char(value,"")
   }
 
   def to_date(value:Any,pattern:String):Date={
@@ -109,9 +112,8 @@ class FunctionExecutor extends Serializable{
     executeFunction("to_number",value)
   }
 
-  def trim(value:Any,pattern:String*):String={
-    val ptn = if(pattern==null||pattern.length==0) " " else pattern(0)
-    val newValue = executeFunction("trim",value,ptn)
+  def trim(value:Any,pattern:String):String={
+    val newValue = executeFunction("trim",value,pattern)
     if(newValue!=null){
       newValue.asInstanceOf[String]
     }else{
@@ -119,9 +121,12 @@ class FunctionExecutor extends Serializable{
     }
   }
 
-  def ltrim(value:Any,pattern:String*):String={
-    val ptn = if(pattern==null||pattern.length==0) " " else pattern(0)
-    val newValue = executeFunction("ltrim",value,ptn)
+  def trim(value:Any):String={
+    trim(value," ")
+  }
+
+  def ltrim(value:Any,pattern:String):String={
+    val newValue = executeFunction("ltrim",value,pattern)
     if(newValue!=null){
       newValue.asInstanceOf[String]
     }else{
@@ -129,9 +134,8 @@ class FunctionExecutor extends Serializable{
     }
   }
 
-  def rtrim(value:String,pattern:String*):String={
-    val ptn = if(pattern==null||pattern.length==0) " " else pattern(0)
-    val newValue = executeFunction("rtrim",value,ptn)
+  def rtrim(value:String,pattern:String):String={
+    val newValue = executeFunction("rtrim",value,pattern)
     if(newValue!=null){
       newValue.asInstanceOf[String]
     }else{

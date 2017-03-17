@@ -82,11 +82,11 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
   def addDataSet(tableInfo:TableInfo,dataSet:DataFrame): Unit ={
     dataSetObjectMap.put(tableInfo.targetName,dataSet)
     dataSet.registerTempTable(tableInfo.targetName)
-    if(!tableInfo.cacheFlag){
+    /*if(!tableInfo.cacheFlag){
       logger.info("DataFrameManage","Cache DataFrame[%s]".format(tableInfo.targetName))
       dataSet.cache()
       tableInfo.cacheFlag = true
-    }
+    }*/
   }
 
   def unCacheDataFrame(table:String): Unit ={
