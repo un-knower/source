@@ -30,11 +30,11 @@ class UnionStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
       }
       i+=1
     }
-    try {
+    /*try {
       resultDF.first()
     }catch{
       case t:Throwable =>
-    }
+    }*/
     resultDF
   }
 
@@ -55,8 +55,21 @@ class UnionStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
   }
 
   protected def getDataFrame(table:String,cols:Array[String]):DataFrame={
+   // val tableInfo = appContext.getTable(table)
     val df = appContext.getDataFrame(table)
-    df.selectExpr(cols:_*)
+    df.selectExpr(cols: _*)
+    /*var needToTran = false
+    for(i<-0 until cols.length if !needToTran){
+      if(i!=tableInfo.getBody.getFieldIndex(table)){
+        needToTran = true
+      }
+    }
+    val df = appContext.getDataFrame(table)
+    if(needToTran) {
+      df.selectExpr(cols: _*)
+    }else{
+      df
+    }*/
   }
 
 

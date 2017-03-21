@@ -4,7 +4,7 @@ import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.spark.sql.{DataFrame, Row}
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 /**
   * Created by scutlxj on 2017/2/10.
@@ -12,25 +12,21 @@ import scala.collection.mutable.ArrayBuffer
 class TextFileSaver extends FileSaver{
   override protected def saveDataFrame(path:String,df: DataFrame): Unit = {
     val targetSeparator = fileInfo.targetSeparator
-    val rowToString = (x: Row) => {
-      val rowData = x.toSeq
+    val rowToString = (x:Iterator[Row]) => {
+      val result:ListBuffer[String] = new ListBuffer[String]
       val str = new StringBuffer()
-      var index = 0
-      for (v <- rowData) {
-        if(index>0){
-          str.append(targetSeparator)
+      val separatorLength = targetSeparator.length
+      while(x.hasNext) {
+        str.setLength(0)
+        for (v <- x.next.toSeq) {
+          str.append(v).append(targetSeparator)
         }
-        str.append(v)
-        index+=1
+        str.setLength(str.length()-separatorLength)
+        result+=str.toString
       }
-      str.toString
+      result.iterator
     }
-    val rdd = df.rdd.map(rowToString)
-    /*if(rdd.getNumPartitions>repartitionNumber){
-      rdd.repartition(repartitionNumber)
-    }*/
-    df.write.format("").save("")
-    rdd.saveAsTextFile(path)
+    df.rdd.save.mapPartitions(rowToString).saveAsTextFile(path)
   }
 
   override protected def saveToTargetPath(tempPath:String,targetPath:String):Unit={

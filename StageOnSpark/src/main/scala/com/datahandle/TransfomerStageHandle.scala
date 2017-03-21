@@ -38,7 +38,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val inputField = inputTableInfo.body.fields.filter(!_.filter)
     val fun = new FunctionExecutor
     val stageId = sqlStageRequest.stageId
-    val errorRcNumber = appContext.sparkContext.accumulator(0, "%s_TransformerErrorRec".format(stageId))
+    //val errorRcNumber = appContext.sparkContext.accumulator(0, "%s_TransformerErrorRec".format(stageId))
     val prop = new Properties
     prop.load(new FileInputStream(appContext.jobConfig.configPath))
     val applicationId = appContext.sparkContext.applicationId
@@ -82,7 +82,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
             if(maxErrorNumber==0){
               throw t
             }else {
-              errorRcNumber += 1
+              //errorRcNumber += 1
             }
         }
       }
@@ -95,14 +95,14 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     }
     val structType = DataTypes.createStructType(structFields)
     val df = appContext.sqlContext.createDataFrame(newRdd,structType)
-    try{
+    /*try{
       df.first()
     }catch {
       case t:Throwable=>
-    }
-    if(errorRcNumber.value > maxErrorNumber){
+    }*/
+    /*if(errorRcNumber.value > maxErrorNumber){
       throw new MaxErrorNumberException("Stage[%s]-Transformer Max Error Rec.Limit[%s],actually[%s]".format(sqlStageRequest.stageId,maxErrorNumber,errorRcNumber))
-    }
+    }*/
     df
   }
 

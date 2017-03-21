@@ -30,6 +30,18 @@ class IFFSection extends Serializable {
     }
     fieldsMap.get(name.toLowerCase())
   }
+
+
+  def getFieldIndex(name:String): Int ={
+    var index = -1
+    for(i<-0 until fields.size if index>=0){
+      if(fields.get(i).name.toUpperCase.equals(name.toUpperCase())){
+        index = i
+      }
+    }
+    index
+  }
+
   def getLength: Int = if(fields.nonEmpty) fields.last.getEndPos else 0
 
   override def toString: String = {

@@ -46,13 +46,14 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
 
   protected def handle(sqlStageRequest: SqlStageRequest):DataFrame={
     val sql = getSql(sqlStageRequest)
-    val df = appContext.sqlContext.sql(sql)
-    try {
+    appContext.sqlContext.sql(sql)
+    //val df = appContext.sqlContext.sql(sql)
+    /*try {
       df.first()
     }catch{
       case t:Throwable =>
     }
-    df
+    df*/
   }
 
   protected def fillOutPutTable(sqlStageRequest: SqlStageRequest):Unit = {

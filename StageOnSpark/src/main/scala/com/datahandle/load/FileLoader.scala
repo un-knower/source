@@ -19,7 +19,7 @@ import org.springframework.beans.BeansException
 import org.springframework.context.support.GenericXmlApplicationContext
 import org.springframework.core.io.ByteArrayResource
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 /**
   * Created by scutlxj on 2017/2/9.
@@ -57,7 +57,7 @@ abstract class FileLoader extends Serializable{
     loadFieldTypeInfo(tableInfo)
 
     val df = loadFile
-    df.first()
+
     val outPutTable = new TableInfo
     outPutTable.targetName = tableInfo.targetName
     outPutTable.body = new IFFSection
@@ -67,6 +67,7 @@ abstract class FileLoader extends Serializable{
     })
     this.stageAppContext.addTable(outPutTable)
     this.stageAppContext.addDataSet(outPutTable, df)
+    //df.first()
   }
 
   def loadFile(): DataFrame
@@ -74,20 +75,27 @@ abstract class FileLoader extends Serializable{
   protected def changeRddToDataFrame(rdd:RDD[String]): DataFrame ={
     val fieldDelimiter = this.fieldDelimiter
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
-    val basePk2Map= (x:String) => {
-      val rowData = StringUtils.splitByWholeSeparatorPreserveAllTokens(x,fieldDelimiter)
-      val array = new ArrayBuffer[Any]
-      for(v<-0 until fields.size){
-        array += rowData(v)
+    val basePk2Map= (x:Iterator[String]) => {
+      val recordList = ListBuffer[Row]()
+      var  rc:String = null
+      var array:ArrayBuffer[Any]= null
+      while(x.hasNext) {
+        rc = x.next()
+        val rowData = StringUtils.splitByWholeSeparatorPreserveAllTokens(rc, fieldDelimiter)
+        array = new ArrayBuffer[Any]
+        for (v <- 0 until fields.size) {
+          array += rowData(v)
+        }
+        recordList += Row.fromSeq(array)
       }
-      Row.fromSeq(array)
+      recordList.iterator
     }
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
       structFields.add(DataTypes.createStructField(f.name.toUpperCase, DataTypes.StringType, true))
     }
     val structType = DataTypes.createStructType(structFields)
-    val rddN = rdd.map(basePk2Map)
+    val rddN = rdd.mapPartitions(basePk2Map)
     sqlContext.createDataFrame(rddN,structType)
   }
 

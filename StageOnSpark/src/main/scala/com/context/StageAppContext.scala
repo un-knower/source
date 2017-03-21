@@ -11,6 +11,7 @@ import com.log.LogBuilder
 import com.model.TableInfo
 import org.apache.spark.SparkContext
 import org.apache.spark.sql.{DataFrame, SQLContext}
+import org.apache.spark.storage.StorageLevel
 
 
 /**
@@ -82,16 +83,18 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
   def addDataSet(tableInfo:TableInfo,dataSet:DataFrame): Unit ={
     dataSetObjectMap.put(tableInfo.targetName,dataSet)
     dataSet.registerTempTable(tableInfo.targetName)
-    /*if(!tableInfo.cacheFlag){
+    if(!tableInfo.cacheFlag&&tableInfo.remainUsedTimes>1){
       logger.info("DataFrameManage","Cache DataFrame[%s]".format(tableInfo.targetName))
-      dataSet.cache()
+      dataSet.persist(StorageLevel.MEMORY_AND_DISK_SER)
       tableInfo.cacheFlag = true
-    }*/
+    }
   }
 
   def unCacheDataFrame(table:String): Unit ={
-    dataSetObjectMap.get(table).unpersist()
-    logger.info("DataFrameManage","UnCache DataFrame[%s]".format(table))
+    if(getTable(table).cacheFlag) {
+      dataSetObjectMap.get(table).unpersist()
+      logger.info("DataFrameManage", "UnCache DataFrame[%s]".format(table))
+    }
   }
 
   def constructLogBuilder():LogBuilder={

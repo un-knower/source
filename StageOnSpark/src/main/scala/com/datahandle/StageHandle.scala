@@ -22,12 +22,12 @@ trait StageHandle[T<:StageRequest] {
     def doCommand(stRequest:StageRequest)(implicit  context:StageAppContext): Unit={
         appContext = context
         logBuilder = appContext.constructLogBuilder().setLogThreadID(Thread.currentThread().getId.toString)
-        before(stRequest)
+        //before(stRequest)
         execute(stRequest)
-        after(stRequest)
+       // after(stRequest)
     }
 
-    private def before(stRequest:StageRequest):Unit={
+    protected def before(stRequest:StageRequest):Unit={
         if(stRequest.inputTables!=null&&stRequest.inputTables.size()>0){
             for(i<-0 until stRequest.inputTables.size() if(StringUtils.isNotBlank(stRequest.inputTables.get(i)))){
                 val table = appContext.getTable(stRequest.inputTables.get(i))
@@ -36,7 +36,7 @@ trait StageHandle[T<:StageRequest] {
         }
     }
 
-    private def after(stRequest:StageRequest):Unit={
+    protected def after(stRequest:StageRequest):Unit={
         if(stRequest.inputTables!=null&&stRequest.inputTables.size()>0){
             for(i<-0 until stRequest.inputTables.size() if(StringUtils.isNotBlank(stRequest.inputTables.get(i)))){
                 val table = appContext.getTable(stRequest.inputTables.get(i))

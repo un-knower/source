@@ -12,13 +12,16 @@ class AppController {
     implicit val stageAppContext = context
     val logBuilder = stageAppContext.constructLogBuilder()
     logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
+    var timeStamp:Long = 0
     while(context.stageEngine.hasMoreStage()){
       val stageInfo = context.stageEngine.nextStage()
       logBuilder.info("handling Stage["+stageInfo.stageId+"]")
       val request: StageRequest = stageInfo.getStageRequest
       val executeHandle = findHandle(request)
       try {
+        timeStamp = System.currentTimeMillis()
         executeHandle.doCommand(request)
+        logBuilder.info("Stage[%s] finished in %s ms".format(stageInfo.stageId,System.currentTimeMillis-timeStamp))
       }catch {
         case e:BaseException => throw e
         case t:Throwable =>
