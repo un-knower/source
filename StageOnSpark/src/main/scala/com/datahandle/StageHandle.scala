@@ -22,7 +22,7 @@ trait StageHandle[T<:StageRequest] {
     def doCommand(stRequest:StageRequest)(implicit  context:StageAppContext): Unit={
         appContext = context
         logBuilder = appContext.constructLogBuilder().setLogThreadID(Thread.currentThread().getId.toString)
-        //before(stRequest)
+        // before(stRequest)
         execute(stRequest)
        // after(stRequest)
     }

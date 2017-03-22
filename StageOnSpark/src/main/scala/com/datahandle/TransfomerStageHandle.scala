@@ -27,7 +27,6 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
       logBuilder.error("Stage[%s]--TransformerStage can only set one inputTable ".format(sqlStageRequest.stageId))
       throw StageInfoErrorException("Stage[%s]--TransformerStage can only set one inputTable ".format(sqlStageRequest.stageId))
     }
-
     val inputTableInfo = appContext.getTable(sqlStageRequest.inputTables.get(0))
     val inputDF = appContext.getDataFrame(inputTableInfo)
     val outputTable = sqlStageRequest.outputTable
@@ -37,69 +36,84 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     }
     val inputField = inputTableInfo.body.fields.filter(!_.filter)
     val fun = new FunctionExecutor
-    val stageId = sqlStageRequest.stageId
-    //val errorRcNumber = appContext.sparkContext.accumulator(0, "%s_TransformerErrorRec".format(stageId))
-    val prop = new Properties
-    prop.load(new FileInputStream(appContext.jobConfig.configPath))
-    val applicationId = appContext.sparkContext.applicationId
-    val maxErrorNumber = 0
-    val mapFun:(Iterator[Row] => Iterator[Row])= { rows=>
-      import com.boc.iff.CommonFieldConvertorContext._
-      implicit val fieldConvertorContext = new CommonFieldConvertorContext(null, null, null)
+    /*
+val stageId = sqlStageRequest.stageId
+//val errorRcNumber = appContext.sparkContext.accumulator(0, "%s_TransformerErrorRec".format(stageId))
+val prop = new Properties
+prop.load(new FileInputStream(appContext.jobConfig.configPath))
+val applicationId = appContext.sparkContext.applicationId
+val maxErrorNumber = 0
 
-      val logger = new ECCLogger()
-      logger.configure(prop)
-      val logBuilder = new LogBuilder(logger)
-      logBuilder.setLogJobID(applicationId)
-      logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
+val mapFun:(Iterator[Row] => Iterator[Row])= { rows=>
+  import com.boc.iff.CommonFieldConvertorContext._
+  implicit val fieldConvertorContext = new CommonFieldConvertorContext(null, null, null)
 
-      val recordList = ListBuffer[Row]()
-      while(rows.hasNext){
-        val r = rows.next()
-        val newData = new ArrayBuffer[String]
-        val valueObjectMap = new util.HashMap[String, Any]
+  val logger = new ECCLogger()
+  logger.configure(prop)
+  val logBuilder = new LogBuilder(logger)
+  logBuilder.setLogJobID(applicationId)
+  logBuilder.setLogThreadID(Thread.currentThread().getId.toString)
+
+  val recordList = ListBuffer[Row]()
+  while(rows.hasNext){
+    val r = rows.next()
+    val newData = new ArrayBuffer[String]
+    val valueObjectMap = new util.HashMap[String, Any]
+    for (index <- 0 until inputField.length) {
+      val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
+      valueObjectMap.put(inputField(index).name.toUpperCase(), inputField(index).toObject(fieldValue))
+    }
+    var express = ""
+    valueObjectMap.put("fn", fun)
+    try {
+      for (field <- outputTable.body.fields) {
+        express = field.fieldExpression
+        val value = if(valueObjectMap.containsKey(express))valueObjectMap.get(express) else field.getValue(valueObjectMap)
+        newData += field.objectToString(value)
+      }
+      recordList += Row.fromSeq(newData)
+    }catch {
+      case t:Throwable=>
+        val data = new StringBuffer()
         for (index <- 0 until inputField.length) {
           val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
-          valueObjectMap.put(inputField(index).name.toUpperCase(), inputField(index).toObject(fieldValue))
+          data.append(inputField(index).name.toUpperCase()).append("=").append(fieldValue).append("|")
         }
-        var express = ""
-        valueObjectMap.put("fn", fun)
-        try {
-          for (field <- outputTable.body.fields) {
-            express = field.fieldExpression
-            val value = if(valueObjectMap.containsKey(express))valueObjectMap.get(express) else field.getValue(valueObjectMap)
-            newData += field.objectToString(value)
-          }
-          recordList += Row.fromSeq(newData)
-        }catch {
-          case t:Throwable=>
-            val data = new StringBuffer()
-            for (index <- 0 until inputField.length) {
-              val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
-              data.append(inputField(index).name.toUpperCase()).append("=").append(fieldValue).append("|")
-            }
-            logBuilder.error("Stage[%s]-{Expression[%s],Data[%s]} Error Msg{%s}".format(stageId,express,data.toString,t.getMessage))
-            if(maxErrorNumber==0){
-              throw t
-            }else {
-              //errorRcNumber += 1
-            }
+        logBuilder.error("Stage[%s]-{Expression[%s],Data[%s]} Error Msg{%s}".format(stageId,express,data.toString,t.getMessage))
+        if(maxErrorNumber==0){
+          throw t
+        }else {
+          //errorRcNumber += 1
         }
-      }
-      recordList.iterator
     }
-    val newRdd = inputDF.mapPartitions(mapFun)
+  }
+  recordList.iterator
+}*/
+    import com.boc.iff.CommonFieldConvertorContext._
+    implicit val fieldConvertorContext = new CommonFieldConvertorContext(null, null, null)
+    val mapFun:(Row => Row)= { r =>
+      val newData = new ArrayBuffer[String]
+      val valueObjectMap = new util.HashMap[String, Any]
+      for (index <- 0 until inputField.length) {
+        val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
+        valueObjectMap.put(inputField(index).name.toUpperCase(), inputField(index).toObject(fieldValue))
+      }
+      var express = ""
+      valueObjectMap.put("fn", fun)
+      for (field <- outputTable.body.fields) {
+        express = field.fieldExpression
+        val value = if (valueObjectMap.containsKey(express)) valueObjectMap.get(express) else field.getValue(valueObjectMap)
+        newData += field.objectToString(value)
+      }
+      Row.fromSeq(newData)
+    }
+    val newRdd = inputDF.map(mapFun)
     val structFields = new util.ArrayList[StructField]()
     for (f <- sqlStageRequest.outputTable.body.fields) {
       structFields.add(DataTypes.createStructField(f.name, DataTypes.StringType, true))
     }
     val structType = DataTypes.createStructType(structFields)
     val df = appContext.sqlContext.createDataFrame(newRdd,structType)
-    /*try{
-      df.first()
-    }catch {
-      case t:Throwable=>
-    }*/
     /*if(errorRcNumber.value > maxErrorNumber){
       throw new MaxErrorNumberException("Stage[%s]-Transformer Max Error Rec.Limit[%s],actually[%s]".format(sqlStageRequest.stageId,maxErrorNumber,errorRcNumber))
     }*/

@@ -26,7 +26,7 @@ class TextFileSaver extends FileSaver{
       }
       result.iterator
     }
-    df.rdd.save.mapPartitions(rowToString).saveAsTextFile(path)
+    df.rdd.mapPartitions(rowToString).saveAsTextFile(path)
   }
 
   override protected def saveToTargetPath(tempPath:String,targetPath:String):Unit={

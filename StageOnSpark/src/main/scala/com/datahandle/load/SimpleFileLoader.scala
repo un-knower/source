@@ -16,9 +16,11 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.Row
+import org.apache.spark.storage.StorageLevel
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration.Duration
@@ -36,12 +38,12 @@ class SimpleFileLoader extends FileLoader{
   val fileInMap = new mutable.HashMap[String,String]
   protected val standbyFileQueue = new LinkedBlockingQueue[String]()
   protected val processFileQueue = new LinkedBlockingQueue[String]()
-  protected val futureQueue = new LinkedBlockingQueue[Future[RDD[String]]]()
-  protected val rddQueue = new LinkedBlockingQueue[RDD[String]]()
+  protected val futureQueue = new LinkedBlockingQueue[Future[RDD[Row]]]()
+  protected val rddQueue = new LinkedBlockingQueue[RDD[Row]]()
 
   def loadFile(): DataFrame = {
     val convertByPartitions = createConvertByPartitionsFunction
-    val conversionJob: ((Int, Long, Int, String) => RDD[String]) = { (blockIndex, blockPosition, blockSize, filePath) =>
+    val conversionJob: ((Int, Long, Int, String) => RDD[Row]) = { (blockIndex, blockPosition, blockSize, filePath) =>
       val rdd = this.sparkContext.makeRDD(Seq((blockIndex, blockPosition, blockSize, filePath)), 1)
       rdd.mapPartitions(convertByPartitions)
 
@@ -51,14 +53,14 @@ class SimpleFileLoader extends FileLoader{
     while(!rddQueue.isEmpty){
       targetRdd = targetRdd.union(rddQueue.take())
     }
-    targetRdd.cache()
+    targetRdd.persist(StorageLevel.MEMORY_AND_DISK)
     val errorPath = getErrorPath()
     implicit val configuration: Configuration = sparkContext.hadoopConfiguration
     DFSUtils.deleteDir(errorPath)
-    targetRdd.filter(_.endsWith("ERROR")).saveAsTextFile(errorPath)
-    val rdd = targetRdd.filter(x=>(!x.endsWith("ERROR")))
-    targetRdd.persist()
-    changeRddToDataFrame(rdd)
+    targetRdd.filter(x=>x(x.length-1).toString.equals("ERROR")).map(_(0)).saveAsTextFile(errorPath)
+    val rdd = targetRdd.filter(x=>(!x(x.length-1).toString.equals("ERROR")))
+    //targetRdd.unpersist()
+    changeRddRowToDataFrame(rdd)
   }
 
   /**
@@ -79,7 +81,7 @@ class SimpleFileLoader extends FileLoader{
     iffFileInfo.fileName = fileInfo.dataPath.substring(fileInfo.dataPath.lastIndexOf("/")+1)
   }
 
-  private def createBlocks(conversionJob: ((Int, Long, Int,String)=>RDD[String])): Unit = {
+  protected def createBlocks(conversionJob: ((Int, Long, Int,String)=>RDD[Row])): Unit = {
     getIFFFilePath(fileInfo.dataPath)
     while(this.standbyFileQueue.size()>0) {
       val filePath = standbyFileQueue.take()
@@ -96,7 +98,7 @@ class SimpleFileLoader extends FileLoader{
 
   }
 
-  protected def createBlockPositionQueueUnfix(filePath:String,conversionJob: ((Int, Long, Int,String)=>RDD[String])):String = {
+  protected def createBlockPositionQueueUnfix(filePath:String,conversionJob: ((Int, Long, Int,String)=>RDD[Row])):String = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(jobConfig.blockSize, 0)
     var totalBlockReadBytesCount: Long = 0
@@ -168,7 +170,7 @@ class SimpleFileLoader extends FileLoader{
     filePath
   }
 
-  protected def createBlockPositionQueueFix(filePath:String,conversionJob: ((Int, Long, Int,String)=>RDD[String])):String = {
+  protected def createBlockPositionQueueFix(filePath:String,conversionJob: ((Int, Long, Int,String)=>RDD[Row])):String = {
     //块大小至少要等于数据行大小
     val blockSize = math.max(jobConfig.blockSize, iffFileInfo.recordLength + tableInfo.lengthOfLineEnd)
     //logger.info("recordLength","recordLength"+iffFileInfo.recordLength)
@@ -282,13 +284,11 @@ class SimpleFileLoader extends FileLoader{
     *
     * @return
     */
-  protected def createConvertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = {
+  protected def createConvertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[Row]) = {
    // val iffConversionConfig = this.iffConversionConfig
     val tableInfo = this.tableInfo
     val iffFileInfo = this.iffFileInfo
     val lengthOfLineEnd = tableInfo.lengthOfLineEnd
-    val fieldDelimiter = this.fieldDelimiter
-    val lineSplit = tableInfo.srcSeparator
     val fileGzipFlgMap = this.fileGzipFlgMap
     implicit val configuration = sparkContext.hadoopConfiguration
     val hadoopConfigurationMap = mutable.HashMap[String,String]()
@@ -309,8 +309,8 @@ class SimpleFileLoader extends FileLoader{
 
 
 
-    val convertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[String]) = { blockPositionIterator =>
-      val recordList = ListBuffer[String]()
+    val convertByPartitionsFunction: (Iterator[(Int, Long, Int,String)] => Iterator[Row]) = { blockPositionIterator =>
+      val recordList = ListBuffer[Row]()
       val charset = IFFUtils.getCharset(tableInfo.sourceCharset)
       dataFileProcessor.charset = charset
       val decoder = charset.newDecoder
@@ -370,7 +370,7 @@ class SimpleFileLoader extends FileLoader{
           if (fields.size>0) {
             var dataInd = 0
             val dataMap = new util.HashMap[String,Any]()
-            val sb = new StringBuffer()
+            val ab = new ArrayBuffer[String]()
             var success = true
             var errorMessage = ""
             var currentName = ""
@@ -411,7 +411,7 @@ class SimpleFileLoader extends FileLoader{
                 try {
                   success = if (iffField.validateField(dataMap)) true else false
                   if(success){
-                    sb.append(convertField(iffField, dataMap)).append(fieldDelimiter) //`
+                    ab+= convertField(iffField, dataMap)
                   }else{
                     errorMessage =  iffField.name + " ERROR validateField"
                   }
@@ -423,11 +423,10 @@ class SimpleFileLoader extends FileLoader{
               }
             }
             if (!success) {
-              sb.setLength(0)
-              sb.append(fields.reduceLeft(_+tableInfo.srcSeparator+_)).append(lineSplit).append(errorMessage).append(" ERROR")
+              ab+= fields.reduceLeft(_+tableInfo.srcSeparator+_)
+              ab+= "ERROR"
             }
-            logger.info("EDFDdddd",sb.toString+"|")
-            recordList += sb.toString
+            recordList += Row.fromSeq(ab)
           }
         }
         dataFileProcessor.close()
@@ -437,7 +436,7 @@ class SimpleFileLoader extends FileLoader{
     convertByPartitionsFunction
   }
 
-  private def getDataFileProcessor():DataFileProcessor={
+  protected def getDataFileProcessor():DataFileProcessor={
     var dataFileProcessor:DataFileProcessor = null
     fileInfo.fileType match {
       case FileType.FIXLENGTH => dataFileProcessor = new FixDataFileProcessor

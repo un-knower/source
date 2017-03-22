@@ -75,7 +75,7 @@ abstract class FileLoader extends Serializable{
   protected def changeRddToDataFrame(rdd:RDD[String]): DataFrame ={
     val fieldDelimiter = this.fieldDelimiter
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
-    val basePk2Map= (x:Iterator[String]) => {
+    /*val basePk2Map= (x:Iterator[String]) => {
       val recordList = ListBuffer[Row]()
       var  rc:String = null
       var array:ArrayBuffer[Any]= null
@@ -89,14 +89,32 @@ abstract class FileLoader extends Serializable{
         recordList += Row.fromSeq(array)
       }
       recordList.iterator
+    }*/
+    val basePk2Map= (x:String) => {
+      val rowData = StringUtils.splitByWholeSeparatorPreserveAllTokens(x, fieldDelimiter)
+      val array = new ArrayBuffer[Any]
+      for (v <- 0 until fields.size) {
+        array += rowData(v)
+      }
+      Row.fromSeq(array)
     }
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
       structFields.add(DataTypes.createStructField(f.name.toUpperCase, DataTypes.StringType, true))
     }
     val structType = DataTypes.createStructType(structFields)
-    val rddN = rdd.mapPartitions(basePk2Map)
+    val rddN = rdd.map(basePk2Map)
     sqlContext.createDataFrame(rddN,structType)
+  }
+
+  protected def changeRddRowToDataFrame(rdd:RDD[Row]): DataFrame ={
+    val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
+    val structFields = new util.ArrayList[StructField]()
+    for(f <- fields) {
+      structFields.add(DataTypes.createStructField(f.name.toUpperCase, DataTypes.StringType, true))
+    }
+    val structType = DataTypes.createStructType(structFields)
+    sqlContext.createDataFrame(rdd,structType)
   }
 
   protected def loadTableInfo(fileInfo:FileInfo): TableInfo ={

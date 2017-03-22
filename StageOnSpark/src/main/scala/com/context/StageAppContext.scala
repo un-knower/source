@@ -85,7 +85,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     dataSet.registerTempTable(tableInfo.targetName)
     if(!tableInfo.cacheFlag&&tableInfo.remainUsedTimes>1){
       logger.info("DataFrameManage","Cache DataFrame[%s]".format(tableInfo.targetName))
-      dataSet.persist(StorageLevel.MEMORY_AND_DISK_SER)
+      dataSet.persist(StorageLevel.MEMORY_AND_DISK)
       tableInfo.cacheFlag = true
     }
   }
