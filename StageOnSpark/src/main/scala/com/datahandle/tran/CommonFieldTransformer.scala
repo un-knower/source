@@ -2,6 +2,7 @@ package com.datahandle.tran
 
 import java.text.{DecimalFormat, SimpleDateFormat}
 import java.util.Date
+import java.util.Calendar
 import java.lang.Double
 import scala.util.matching.Regex
 
@@ -156,89 +157,183 @@ object CommonFieldTransformer {
       }
     }
 
+    override def replace(fieldValue:String,searchStr:String,replaceStr:String,pos:Int):String={
+      if(pos==0) fieldValue.replace(searchStr,replaceStr)
+      else if(pos==1) {
+        val indx = fieldValue.indexOf(searchStr)
+        if(indx >= 0){
+          fieldValue.substring(0,indx) + replaceStr + fieldValue.substring(indx+searchStr.size,fieldValue.size)
+        }else
+          fieldValue
+      } else if(pos>1){
+        var vFieldValue = fieldValue
+        var leftValue = ""
+        var indx = vFieldValue.indexOf(searchStr)
+        for(i<- 1 to pos-1 if indx>=0 ){
+          if(indx+searchStr.size<vFieldValue.size){
+            vFieldValue = vFieldValue.substring(indx+searchStr.size,vFieldValue.size)
+            leftValue = leftValue + vFieldValue.substring(0,indx+searchStr.size)
+            indx = vFieldValue.indexOf(searchStr)
+          } else {
+            indx = 0-1
+          }
+        }
+        if(indx >= 0){
+          leftValue = leftValue + vFieldValue.substring(0,indx)
+          leftValue + replaceStr + vFieldValue.substring(indx+searchStr.size,vFieldValue.size)
+        }else
+          fieldValue
+      }else if(pos <= -1){
+        var vFieldValue = fieldValue
+        var indx = vFieldValue.indexOf(searchStr)
+        var matchNum = 0
+        while(indx > 0){
+          matchNum = matchNum+1
+          vFieldValue = vFieldValue.substring(indx+searchStr.size,vFieldValue.size)
+          indx = vFieldValue.indexOf(searchStr)
+        }
+        if(matchNum + pos >= 0 )
+          replace(fieldValue,searchStr,replaceStr,matchNum+pos+1)
+        else
+          fieldValue
+      }else{
+        fieldValue
+      }
+    }
+
   }
 
   implicit object StringTransformField extends StringFieldTransformer
 
 
   trait DecimalFieldTransformer extends CommonFieldTransformer[Double] {
-
     override def round(fieldValue: Double,pattern:String):Double = {
-      var i=0
-      var tens=1
-      val p=pattern.toInt
-      if(p>0){
-         while(i < p){
-           tens=tens*10
-           i=i+1
-         }
-        println(tens)
-        math.round(fieldValue*tens)*1.0/tens
-      }else{
-        while(i < (0-p)){
-          tens=tens*10
-          i=i+1
-        }
-        println(tens)
-        math.round(fieldValue/tens)*tens
+      val patt = pattern.trim
+      var decLen = 0
+      if(patt.indexOf(".")>0){
+        decLen = patt.substring(patt.indexOf(".")+1,patt.size).toArray.filter(_!=',' ).size
       }
+      BigDecimal(fieldValue).setScale(decLen,BigDecimal.RoundingMode.HALF_UP).toDouble
+    }
+
+    override def trunc(fieldValue:Double,pattern:String):Long={
+      math.floor(fieldValue).toLong
+    }
+
+    //千分位分隔符从右向左规则的格式化
+    def pointLeft_to_char(fieldValue:Double,intPattern:String):String={
+      val valueStr = new DecimalFormat("####################.##########").format(fieldValue)
+      val intLen = valueStr.indexOf(".")
+      val intStr = valueStr.substring(0,intLen)
+      val pointLoc = intPattern.size
+
+      var subSize:Int = 0
+      var flag = true
+      for( k <-  1 to pointLoc if flag ){
+        if(intPattern.substring(pointLoc-k,pointLoc-k+1)==",")
+          flag = false
+        else
+          subSize = subSize+1
+      }
+      flag = true
+      var vLen =intLen
+      var intPart = ""
+      while(flag){
+        for( k <- 1 to subSize if flag ){
+          if( k<=vLen ){
+            intPart  = intStr.substring(vLen-k,vLen-k+1) + intPart
+          }else{
+            flag = false
+          }
+        }
+        if( flag && vLen>=subSize){
+          vLen = vLen-subSize
+          if(vLen>0)
+            intPart = "," + intPart
+        }
+      }
+      intPart
+    }
+
+    //千分位分隔符从左向右规则的格式化
+    def pointRight_to_char(fieldValue:Double,decPattern:String):String={
+      val valueStr = new DecimalFormat("####################.##########").format(fieldValue)
+      val intLen = valueStr.indexOf(".")
+      val decLen = valueStr.size-intLen -1
+      val decStr = valueStr.substring(intLen+1,valueStr.size)
+      val decPatternLen = decPattern.size
+
+      var subSize:Int = 0
+      var flag = true
+      for( k <-  1 to decPatternLen if flag ){
+        if(decPattern.substring(k-1,k)==",")
+          flag = false
+        else
+          subSize = subSize+1
+      }
+      flag = true
+      var vLen =decLen
+      var decPart = ""
+      var i:Int = 0
+      while(flag){
+        for( k <- 1 to subSize if flag ){
+          if( k<=vLen ){
+            decPart  = decPart + decStr.substring(i,i+1)
+            i=i+1
+          }else{
+            flag = false
+          }
+        }
+        if( flag && vLen>=subSize){
+          vLen = vLen-subSize
+          if(vLen>0)
+            decPart  = decPart + ","
+        }
+      }
+      decPart
     }
 
     override def to_char (fieldValue: Double,pattern:String):String={
       val ptn0 = new Regex("([+-])*([0,])*(.0[0,]*)")
       val ptn9 = new Regex("([+-])*([9,])*(.9[9,]*)")
-
-      if(StringUtils.isEmpty((ptn0 findAllIn pattern).mkString(" "))
-        &&StringUtils.isEmpty((ptn9 findAllIn pattern).mkString(" "))){
+      if((StringUtils.isEmpty((ptn0 findAllIn pattern).mkString(" ")) &&StringUtils.isEmpty((ptn9 findAllIn pattern).mkString(" ")))
+      ||( pattern.indexOf("0")>0 && pattern.indexOf("9")>0 ) ) {
         throw new StageHandleException("pattern [%s] is invalid ".format(pattern))
       }
 
-      val pattern1=pattern.replace('9','#').replace('+',' ').replace('-',' ').trim
-      val pointAt = pattern1.indexOf(".")
-      if(pattern1.substring(0,1)=="0" && pointAt>0 ){
-        var l1=0
-        var r1=0
-        for(c<-pattern1.substring(0,pointAt).toArray){if(c==',')l1=l1+1}
-        val len1 = pattern1.size
-        for(c<-pattern1.substring(pointAt+1,len1).toArray){if(c==',')r1=r1+1}
-        val len=len1-r1-l1
-        val prec = len1 - pointAt -1-r1
-        if(prec>0){
-          var i=0
-          var tens = 1
-          while(i < prec){
-            tens=tens*10
-             i=i+1
-          }
-          val part1=math.floor(fieldValue)
-          val part2=math.round((fieldValue-part1)*tens)
-          val format1 = new DecimalFormat(pattern1.substring(0,pointAt))
-          val format2 = new DecimalFormat(pattern1.substring(pointAt+1,len1))
-          if(pattern.substring(0,1)=="+" || pattern.substring(0,1)=="-"){
-            if(fieldValue>0.0)
-              pattern.substring(0,1)+format1.format(part1)+"."+format2.format(part2)
-            else
-              format1.format(part1)+"."+format2.format(part2)
-          }else{
-            format1.format(part1)+"."+format2.format(part2)
-          }
+      var signSymbol = ""
+      var patt = pattern.trim
+      if(patt.substring(0,1)=="+"|| patt.substring(0,1)=="-"){
+        signSymbol=patt.substring(0,1)
+        patt=patt.substring(1,patt.size)
+      }
+      if(patt.indexOf(".")>0){
+        val intPattLen = patt.indexOf(".")
+        val intPatt = patt.substring(0,intPattLen)
+        var intPart = ""
+        if(intPatt.indexOf(",")>0){
+          intPart = pointLeft_to_char(fieldValue,intPatt)
         }else{
-          val format = new DecimalFormat(pattern1)
-          if((pattern.substring(0,1)=="+" || pattern.substring(0,1)=="-")&&fieldValue>0.0){
-            pattern.substring(0,1)+format.format(fieldValue)
-          }else{
-            format.format(fieldValue)
-          }
-       }
-     }else{
-        val format = new DecimalFormat(pattern1)
-        if((pattern.substring(0,1)=="+" || pattern.substring(0,1)=="-")&&fieldValue>0.0){
-          pattern.substring(0,1)+format.format(fieldValue)
-        }else{
-          format.format(fieldValue)
+          intPart = new DecimalFormat(intPatt.replace('9','#')).format(math.floor(fieldValue))
         }
+
+        val decPatt = patt.substring(intPattLen+1,patt.size)
+        var decPart = ""
+        if(decPatt.indexOf(",")>0){
+          decPart = "." + pointRight_to_char(fieldValue,decPatt)
+        }else{
+          val valueStr = new DecimalFormat("####################.##########").format(fieldValue)
+          val intLen = valueStr.indexOf(".")
+          val decStr = "0."+valueStr.substring(intLen+1,valueStr.size)
+          decPart = new DecimalFormat("."+decPatt.replace('9','#')).format(round(decStr.toDouble,pattern))
+        }
+        signSymbol+intPart+decPart
+      }else{
+        val ret = new DecimalFormat(patt.replace('9','#')).format(fieldValue)
+        signSymbol+ret
       }
     }
+
   }
   implicit object DecimalTransformField extends DecimalFieldTransformer
 
@@ -255,7 +350,7 @@ object CommonFieldTransformer {
         }else
           format.format(fieldValue)
       }else{
-        fieldValue.toString
+        new DecimalFormat("####################.##########").format(fieldValue)
       }
     }
   }
@@ -280,6 +375,15 @@ object CommonFieldTransformer {
         case _ => fieldValue.toString
       }
       charDay
+    }
+
+    override def current_monthend(fieldValue:Date):Date={
+      val dateFormat = new SimpleDateFormat("yyyyMMdd")
+      val ca = Calendar.getInstance()
+      ca.setTime(dateFormat.parse(to_char(fieldValue,"YYYY")+to_char(fieldValue,"MM")+"01"))
+      ca.add(Calendar.MONTH,1)
+      ca.add(Calendar.DAY_OF_MONTH,-1)
+      ca.getTime
     }
 
     override def length(fieldValue:Date):Int={
