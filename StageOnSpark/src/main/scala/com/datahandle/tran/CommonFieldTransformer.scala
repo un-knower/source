@@ -1,8 +1,8 @@
 package com.datahandle.tran
 
 import java.text.{DecimalFormat, SimpleDateFormat}
-import java.util.Date
-import java.util.Calendar
+import java.text.ParseException
+import java.util.{Date,Calendar}
 import java.lang.Double
 import scala.util.matching.Regex
 
@@ -11,6 +11,7 @@ import org.apache.commons.lang3.StringUtils
 
 /**
   * Created by scutlxj on 2017/2/22.
+  * Modified by xp on 2017/03/23
   */
 @annotation.implicitNotFound(msg = "No implicit CommonFieldTransformer defined for ${T}.")
 sealed trait CommonFieldTransformer[T<:Any]  {
@@ -73,11 +74,12 @@ sealed trait CommonFieldTransformer[T<:Any]  {
     throw new StageHandleException("round do not apply for type[%s]".format(fieldValue.getClass.getSimpleName))
   }
 
-
 }
 
 object CommonFieldTransformer {
+
   trait StringFieldTransformer extends CommonFieldTransformer[String]{
+
     override def to_char(fieldValue:String , pattern: String):String={
       if(fieldValue==null)
         throw new StageHandleException("to_char do not apply for null")
@@ -91,15 +93,16 @@ object CommonFieldTransformer {
     }
 
     override def to_date(fieldValue:String , pattern: String):Date={
-      val retDate = pattern.toUpperCase match{
-        case "YYYYMMDD" =>  new SimpleDateFormat("yyyyMMdd").parse(fieldValue)
-        case "YYYY-MM-DD" => new SimpleDateFormat("yyyy-MM-dd").parse(fieldValue)
-        case "YYYY/MM/DD" => new SimpleDateFormat("yyyy/MM/dd").parse(fieldValue)
-        case "YYMMDD" => new SimpleDateFormat("yyMMdd").parse(fieldValue)
-        case "YYYY/M/D" => new SimpleDateFormat("yyyy/M/d").parse(fieldValue)
-        case _ => new SimpleDateFormat(pattern).parse(fieldValue)
+      val df = pattern.toUpperCase match{
+        case "YYYYMMDD" =>  new SimpleDateFormat("yyyyMMdd")
+        case "YYYY-MM-DD" => new SimpleDateFormat("yyyy-MM-dd")
+        case "YYYY/MM/DD" => new SimpleDateFormat("yyyy/MM/dd")
+        case "YYMMDD" => new SimpleDateFormat("yyMMdd")
+        case "YYYY/M/D" => new SimpleDateFormat("yyyy/M/d")
+        case _ => new SimpleDateFormat(pattern)
       }
-      retDate
+      df.setLenient(false)
+      df.parse(fieldValue)
     }
 
     override def substring(fieldValue:String, startPos:Int,endPos:Int):String={
@@ -158,55 +161,45 @@ object CommonFieldTransformer {
     }
 
     override def replace(fieldValue:String,searchStr:String,replaceStr:String,pos:Int):String={
-      if(pos==0) fieldValue.replace(searchStr,replaceStr)
-      else if(pos==1) {
-        val indx = fieldValue.indexOf(searchStr)
-        if(indx >= 0){
-          fieldValue.substring(0,indx) + replaceStr + fieldValue.substring(indx+searchStr.size,fieldValue.size)
-        }else
-          fieldValue
-      } else if(pos>1){
-        var vFieldValue = fieldValue
-        var leftValue = ""
-        var indx = vFieldValue.indexOf(searchStr)
-        for(i<- 1 to pos-1 if indx>=0 ){
-          if(indx+searchStr.size<vFieldValue.size){
-            vFieldValue = vFieldValue.substring(indx+searchStr.size,vFieldValue.size)
-            leftValue = leftValue + vFieldValue.substring(0,indx+searchStr.size)
-            indx = vFieldValue.indexOf(searchStr)
-          } else {
-            indx = 0-1
-          }
-        }
-        if(indx >= 0){
-          leftValue = leftValue + vFieldValue.substring(0,indx)
-          leftValue + replaceStr + vFieldValue.substring(indx+searchStr.size,vFieldValue.size)
-        }else
-          fieldValue
-      }else if(pos <= -1){
-        var vFieldValue = fieldValue
-        var indx = vFieldValue.indexOf(searchStr)
-        var matchNum = 0
-        while(indx > 0){
-          matchNum = matchNum+1
-          vFieldValue = vFieldValue.substring(indx+searchStr.size,vFieldValue.size)
-          indx = vFieldValue.indexOf(searchStr)
-        }
-        if(matchNum + pos >= 0 )
-          replace(fieldValue,searchStr,replaceStr,matchNum+pos+1)
+      if(pos==0){
+        fieldValue.replace(searchStr,replaceStr)
+      }else {
+        var endFlag=""
+        if(searchStr.substring(searchStr.size-1,searchStr.size)!="1")
+          endFlag="1"
         else
-          fieldValue
-      }else{
-        fieldValue
+          endFlag="2"
+        if(pos>0){
+          if(searchStr!=replaceStr){
+            val strArray = (fieldValue+endFlag).split(searchStr)
+            if( strArray.size <= pos )
+              fieldValue
+            else{
+              var retValue=""
+              for( c<-0 to strArray.size-1 ){
+                if(c==pos-1)
+                  retValue=retValue+strArray(c)+replaceStr
+                else if(c!=strArray.size-1)
+                  retValue=retValue+strArray(c)+searchStr
+                else if( strArray(c).size >=2 )
+                  retValue=retValue+strArray(c).substring(0,strArray(c).size-1)
+              }
+              retValue
+            }
+          }else{
+            fieldValue
+          }
+        }else{
+          replace(fieldValue.reverse,searchStr,replaceStr,0-pos).reverse
+        }
       }
     }
-
   }
-
   implicit object StringTransformField extends StringFieldTransformer
 
 
   trait DecimalFieldTransformer extends CommonFieldTransformer[Double] {
+
     override def round(fieldValue: Double,pattern:String):Double = {
       val patt = pattern.trim
       var decLen = 0
@@ -220,7 +213,6 @@ object CommonFieldTransformer {
       math.floor(fieldValue).toLong
     }
 
-    //千分位分隔符从右向左规则的格式化
     def pointLeft_to_char(fieldValue:Double,intPattern:String):String={
       val valueStr = new DecimalFormat("####################.##########").format(fieldValue)
       val intLen = valueStr.indexOf(".")
@@ -255,7 +247,6 @@ object CommonFieldTransformer {
       intPart
     }
 
-    //千分位分隔符从左向右规则的格式化
     def pointRight_to_char(fieldValue:Double,decPattern:String):String={
       val valueStr = new DecimalFormat("####################.##########").format(fieldValue)
       val intLen = valueStr.indexOf(".")
@@ -356,6 +347,25 @@ object CommonFieldTransformer {
   }
   implicit object IntegerTransformField extends IntegerFieldTransformer
 
+  trait LongFieldTransformer extends CommonFieldTransformer[Long] {
+    override def to_char (fieldValue: Long,pattern:String):String={
+      if(StringUtils.isNotEmpty(pattern)) {
+        val newPattern=pattern.replace('9','#').replace('+',' ').replace('-',' ').trim
+        val format = new DecimalFormat(newPattern)
+        if(pattern.substring(0,1)=="+" || pattern.substring(0,1)=="-"){
+          if(fieldValue>0.0)
+            "+"+format.format(fieldValue)
+          else
+            format.format(fieldValue)
+        }else
+          format.format(fieldValue)
+      }else{
+        new DecimalFormat("####################.##########").format(fieldValue)
+      }
+    }
+  }
+  implicit object LongTransformField extends LongFieldTransformer
+
   trait DateFieldTransformer extends CommonFieldTransformer[Date] {
     override def to_char(fieldValue: Date,pattern:String) = {
       val charDay = pattern.toUpperCase match{
@@ -391,6 +401,7 @@ object CommonFieldTransformer {
     }
   }
   implicit object DateTransformField extends DateFieldTransformer
+
 
   def apply[T<:Any](implicit transformer: CommonFieldTransformer[T]) = {
     transformer
