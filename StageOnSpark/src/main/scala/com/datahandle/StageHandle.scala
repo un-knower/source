@@ -1,5 +1,6 @@
 package com.datahandle
 
+import com.boc.iff.DFSUtils
 import com.boc.iff.exception.StageHandleException
 import com.boc.iff.model.IFFFieldType
 import com.context.{StageAppContext, StageRequest}
@@ -60,6 +61,8 @@ trait StageHandle[T<:StageRequest] {
     def execute(stRequest:StageRequest): Unit
 
     protected def saveDebug(debugInfo:DebugInfo,df:DataFrame):Unit={
+        implicit val config = appContext.sparkContext.hadoopConfiguration
+        DFSUtils.deleteDir(debugInfo.file)
         val newDF = df.limit(debugInfo.limit)
         val targetSeparator = debugInfo.delimiter
         val rowToString = (x: Row) => {
@@ -76,8 +79,12 @@ trait StageHandle[T<:StageRequest] {
             str.toString
         }
         val rdd = newDF.rdd.map(rowToString)
-        rdd.saveAsTextFile(debugInfo.file)
-        combine(debugInfo)
+        if("LOG".equals(debugInfo.method)){
+
+        }else {
+            rdd.saveAsTextFile(debugInfo.file)
+            combine(debugInfo)
+        }
     }
 
     protected def combine(debugInfo:DebugInfo):Unit={

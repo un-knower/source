@@ -7,6 +7,7 @@ import com.boc.iff.exception.StageInfoErrorException
 import org.apache.commons.lang3.StringUtils
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Created by scutlxj on 2017/3/9.
@@ -22,10 +23,15 @@ class StageEngine private(){
     this.stageInfos = stageInfos
     val stageMap: mutable.HashMap[String, StageInfo] = new mutable.HashMap[String, StageInfo]
     tableUsedTime = new mutable.HashMap[String, Int]
+    val startStages = new ArrayBuffer[StageInfo]
     for (i <- 0 until stageInfos.size()) {
       val s = stageInfos.get(i)
       if (stageMap.contains(s.stageId)) {
         throw new StageInfoErrorException("StageID [%s] Duplicate Defined")
+      }
+      val bb = (s.inputTables==null||s.inputTables.toArray().filter { x => StringUtils.isNotBlank(x.asInstanceOf[String])}.length==0)
+      if(bb){
+        startStages += s
       }
       stageMap += (s.stageId -> s)
       if(s.inputTables!=null&&s.inputTables.size()>0){
@@ -38,7 +44,8 @@ class StageEngine private(){
         }
       }
     }
-    analysisDepth(stageInfos.get(0), stageMap)
+
+    for(s<-startStages)analysisDepth(s, stageMap)
     Collections.sort(this.stageInfos, new Comparator[StageInfo] {
       override def compare(o1: StageInfo, o2: StageInfo): Int = {
         o1.depth.compareTo(o2.depth)

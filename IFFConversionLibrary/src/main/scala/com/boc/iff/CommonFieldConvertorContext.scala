@@ -113,7 +113,7 @@ class CommonFieldConvertorContext(val metadata: IFFMetadata, val iffFileInfo: IF
   }
 
   def objectToString(iffField:IFFField,fieldValue:Any):String = {
-    val newValue = if(fieldValue==null)"" else iffField.typeInfo match {
+    val newValue = if(fieldValue==null)null else iffField.typeInfo match {
       case fieldType@IFFDate() => objectToString(fieldType, fieldValue)
       case fieldType@IFFTime() => objectToString(fieldType, fieldValue)
       case fieldType@IFFTimestamp() => objectToString(fieldType, fieldValue)
