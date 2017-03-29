@@ -16,6 +16,8 @@ import org.apache.commons.lang3.StringUtils
 @annotation.implicitNotFound(msg = "No implicit CommonFieldTransformer defined for ${T}.")
 sealed trait CommonFieldTransformer[T<:Any]  {
 
+  val valueFormat = "####################.##########"
+
   def to_char (fieldValue: T,pattern:String):String={fieldValue.toString}
 
   def to_date(fieldValue:T , pattern: String):Date={
@@ -79,7 +81,6 @@ sealed trait CommonFieldTransformer[T<:Any]  {
 object CommonFieldTransformer {
 
   trait StringFieldTransformer extends CommonFieldTransformer[String]{
-
     override def to_char(fieldValue:String , pattern: String):String={
       if(fieldValue==null)
         throw new StageHandleException("to_char do not apply for null")
@@ -214,8 +215,8 @@ object CommonFieldTransformer {
     }
 
     def pointLeft_to_char(fieldValue:Double,intPattern:String):String={
-      val valueStr = new DecimalFormat("####################.##########").format(fieldValue)
-      val intLen = valueStr.indexOf(".")
+      val valueStr = new DecimalFormat(valueFormat).format(fieldValue)
+      val intLen = if (valueStr.indexOf(".")>=0) valueStr.indexOf(".") else valueStr.size
       val intStr = valueStr.substring(0,intLen)
       val pointLoc = intPattern.size
 
@@ -248,10 +249,10 @@ object CommonFieldTransformer {
     }
 
     def pointRight_to_char(fieldValue:Double,decPattern:String):String={
-      val valueStr = new DecimalFormat("####################.##########").format(fieldValue)
-      val intLen = valueStr.indexOf(".")
-      val decLen = valueStr.size-intLen -1
-      val decStr = valueStr.substring(intLen+1,valueStr.size)
+      val valueStr = new DecimalFormat(valueFormat).format(fieldValue)
+      val intLen = if(valueStr.indexOf(".") >=0) valueStr.indexOf(".")  else valueStr.size
+      val decLen = if(valueStr.size-intLen -1 >=0) valueStr.size-intLen -1 else decPattern.toArray.filter(_!=',' ).size
+      val decStr = if(valueStr.size-intLen -1 >=0) valueStr.substring(intLen+1,valueStr.size) else "0000000000"
       val decPatternLen = decPattern.size
 
       var subSize:Int = 0
@@ -313,9 +314,13 @@ object CommonFieldTransformer {
         if(decPatt.indexOf(",")>0){
           decPart = "." + pointRight_to_char(fieldValue,decPatt)
         }else{
-          val valueStr = new DecimalFormat("####################.##########").format(fieldValue)
+          val valueStr = new DecimalFormat(valueFormat).format(fieldValue)
           val intLen = valueStr.indexOf(".")
-          val decStr = "0."+valueStr.substring(intLen+1,valueStr.size)
+          var decStr = ""
+          if(intLen>=0)
+            decStr = "0."+valueStr.substring(intLen+1,valueStr.size)
+          else
+             decStr = "0."+"0000000000"
           decPart = new DecimalFormat("."+decPatt.replace('9','#')).format(round(decStr.toDouble,pattern))
         }
         signSymbol+intPart+decPart
@@ -341,7 +346,7 @@ object CommonFieldTransformer {
         }else
           format.format(fieldValue)
       }else{
-        new DecimalFormat("####################.##########").format(fieldValue)
+        new DecimalFormat(valueFormat).format(fieldValue)
       }
     }
   }
@@ -360,7 +365,7 @@ object CommonFieldTransformer {
         }else
           format.format(fieldValue)
       }else{
-        new DecimalFormat("####################.##########").format(fieldValue)
+        new DecimalFormat(valueFormat).format(fieldValue)
       }
     }
   }
