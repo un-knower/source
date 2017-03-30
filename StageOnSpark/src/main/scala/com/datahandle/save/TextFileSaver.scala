@@ -1,5 +1,5 @@
 package com.datahandle.save
-import com.boc.iff.DFSUtils
+import com.boc.iff.{CommonFieldConvertorContext, DFSUtils}
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.spark.sql.{DataFrame, Row}
 
@@ -11,22 +11,19 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
   */
 class TextFileSaver extends FileSaver{
   override protected def saveDataFrame(path:String,df: DataFrame): Unit = {
+    import com.boc.iff.CommonFieldConvertorContext._
+    implicit val fieldConvertorContext = new CommonFieldConvertorContext(null, null, null)
     val targetSeparator = fileInfo.targetSeparator
-    val rowToString = (x:Iterator[Row]) => {
-      val result:ListBuffer[String] = new ListBuffer[String]
-      val str = new StringBuffer()
-      val separatorLength = targetSeparator.length
-      while(x.hasNext) {
-        str.setLength(0)
-        for (v <- x.next.toSeq) {
-          str.append(v).append(targetSeparator)
-        }
-        str.setLength(str.length()-separatorLength)
-        result+=str.toString
+    val fields = tableInfo.getBody.fields
+    val rowToString = (x:Row)=> {
+      val sb = new StringBuffer()
+      for(i<-0 until fields.size){
+        if(i>0)sb.append(targetSeparator)
+        sb.append(fields(i).objectToString(x(i)))
       }
-      result.iterator
+      sb.toString
     }
-    df.rdd.mapPartitions(rowToString).saveAsTextFile(path)
+    df.rdd.map(rowToString).saveAsTextFile(path)
   }
 
   override protected def saveToTargetPath(tempPath:String,targetPath:String):Unit={

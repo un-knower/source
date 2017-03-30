@@ -33,6 +33,8 @@ class FunctionExecutor extends Serializable{
       case "trunc" => transformer.trunc(value,pattern(0).asInstanceOf[String])
       case "round" => transformer.round(value,pattern(0).asInstanceOf[String])
       case "replace" => transformer.round(value,pattern(0).asInstanceOf[String])
+      case "to_number" => transformer.to_number(value)
+      case "to_double" => transformer.to_double(value)
     }
   }
 
@@ -112,6 +114,10 @@ class FunctionExecutor extends Serializable{
     executeFunction("to_number",value)
   }
 
+  def to_double(value:Any):Any={
+    executeFunction("to_double",value)
+  }
+
   def trim(value:Any,pattern:String):String={
     val newValue = executeFunction("trim",value,pattern)
     if(newValue!=null){
@@ -125,6 +131,14 @@ class FunctionExecutor extends Serializable{
     trim(value," ")
   }
 
+  def ltrim(value:Any):String={
+    ltrim(value," ")
+  }
+
+  def rtrim(value:Any):String={
+    rtrim(value," ")
+  }
+
   def ltrim(value:Any,pattern:String):String={
     val newValue = executeFunction("ltrim",value,pattern)
     if(newValue!=null){
@@ -134,7 +148,7 @@ class FunctionExecutor extends Serializable{
     }
   }
 
-  def rtrim(value:String,pattern:String):String={
+  def rtrim(value:Any,pattern:String):String={
     val newValue = executeFunction("rtrim",value,pattern)
     if(newValue!=null){
       newValue.asInstanceOf[String]

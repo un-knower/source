@@ -3,6 +3,7 @@ package com.datahandle
 import java.util
 
 import com.boc.iff.exception.StageInfoErrorException
+import com.boc.iff.model.{CDecimal, CInteger}
 import com.context.{SqlStageRequest, StageRequest}
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.DataFrame
@@ -45,7 +46,12 @@ class DeduplicateStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val rdd = df.rdd.map(mapPk).reduceByKey((x,y)=>comparator(x,y)).map(_._2)
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
-      structFields.add(DataTypes.createStructField(f.name.toUpperCase, DataTypes.StringType, true))
+      val tp = (f.typeInfo match {
+        case fieldType: CInteger => DataTypes.IntegerType
+        case fieldType: CDecimal => DataTypes.DoubleType
+        case _ => DataTypes.StringType
+      })
+      structFields.add(DataTypes.createStructField(f.name.toUpperCase, tp, true))
     }
     val structType = DataTypes.createStructType(structFields)
     appContext.sqlContext.createDataFrame(rdd,structType)
@@ -66,8 +72,24 @@ class DeduplicateStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
         val o1 = r1(s._1)
         val o2 = r2(s._1)
         result = s._2 match {
-          case "desc" => if (o2 == null)  -1 else if (o1 == null) 1 else o2.toString.compareTo(o1.toString)
-          case _ => if (o1 == null)  -1 else if (o2 == null) 1 else o1.toString.compareTo(o2.toString)
+          case "desc" => if (o2 == null)  -1 else if (o1 == null) 1 else {
+            if(o1.isInstanceOf[Integer]){
+              o2.asInstanceOf[Integer].compareTo(o1.asInstanceOf[Integer])
+            }else if(o1.isInstanceOf[java.lang.Double]){
+              o2.asInstanceOf[java.lang.Double].compareTo(o1.asInstanceOf[java.lang.Double])
+            }else{
+              o2.toString.compareTo(o1.toString)
+            }
+          }
+          case _ => if (o1 == null)  -1 else if (o2 == null) 1 else{
+            if(o1.isInstanceOf[Integer]){
+              o1.asInstanceOf[Integer].compareTo(o2.asInstanceOf[Integer])
+            }else if(o1.isInstanceOf[java.lang.Double]){
+              o1.asInstanceOf[java.lang.Double].compareTo(o2.asInstanceOf[java.lang.Double])
+            }else{
+              o1.toString.compareTo(o2.toString)
+            }
+          }
         }
         if(result!=0)notEnd=false
       }

@@ -4,7 +4,7 @@ import java.io.File
 import java.util
 
 import com.boc.iff.exception.StageInfoErrorException
-import com.boc.iff.model.{IFFField, IFFFieldType, IFFSection}
+import com.boc.iff.model.{CDecimal, CInteger, IFFField, IFFFieldType, IFFSection}
 import com.config.SparkJobConfig
 import com.context.{FileReadStageRequest, StageAppContext}
 import com.log.LogBuilder
@@ -75,32 +75,31 @@ abstract class FileLoader extends Serializable{
   protected def changeRddToDataFrame(rdd:RDD[String]): DataFrame ={
     val fieldDelimiter = this.fieldDelimiter
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
-    /*val basePk2Map= (x:Iterator[String]) => {
-      val recordList = ListBuffer[Row]()
-      var  rc:String = null
-      var array:ArrayBuffer[Any]= null
-      while(x.hasNext) {
-        rc = x.next()
-        val rowData = StringUtils.splitByWholeSeparatorPreserveAllTokens(rc, fieldDelimiter)
-        array = new ArrayBuffer[Any]
-        for (v <- 0 until fields.size) {
-          array += rowData(v)
-        }
-        recordList += Row.fromSeq(array)
-      }
-      recordList.iterator
-    }*/
+
     val basePk2Map= (x:String) => {
       val rowData = StringUtils.splitByWholeSeparatorPreserveAllTokens(x, fieldDelimiter)
       val array = new ArrayBuffer[Any]
       for (v <- 0 until fields.size) {
-        array += rowData(v)
+       if(StringUtils.isNotEmpty(rowData(v))) {
+          fields(v).typeInfo match {
+            case fieldType: CInteger => array += new Integer(rowData(v))
+            case fieldType: CDecimal => array += new java.lang.Double(rowData(v))
+            case _ => array += rowData(v)
+          }
+        }else {
+          array += rowData(v)
+        }
       }
       Row.fromSeq(array)
     }
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
-      structFields.add(DataTypes.createStructField(f.name.toUpperCase, DataTypes.StringType, true))
+      val tp = f.typeInfo match {
+        case fieldType: CInteger => DataTypes.IntegerType
+        case fieldType: CDecimal => DataTypes.DoubleType
+        case _ => DataTypes.StringType
+      }
+      structFields.add(DataTypes.createStructField(f.name.toUpperCase, tp, true))
     }
     val structType = DataTypes.createStructType(structFields)
     val rddN = rdd.map(basePk2Map)
@@ -111,7 +110,12 @@ abstract class FileLoader extends Serializable{
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
-      structFields.add(DataTypes.createStructField(f.name.toUpperCase, DataTypes.StringType, true))
+      val tp = f match {
+        case fieldType: CInteger => DataTypes.IntegerType
+        case fieldType: CDecimal => DataTypes.DoubleType
+        case _ => DataTypes.StringType
+      }
+      structFields.add(DataTypes.createStructField(f.name.toUpperCase, tp, true))
     }
     val structType = DataTypes.createStructType(structFields)
     sqlContext.createDataFrame(rdd,structType)

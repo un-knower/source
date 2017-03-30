@@ -6,6 +6,7 @@ import java.util.Properties
 
 import com.boc.iff.{CommonFieldConvertorContext, ECCLogger}
 import com.boc.iff.exception.{MaxErrorNumberException, StageInfoErrorException}
+import com.boc.iff.model.{CDate, CDecimal, CInteger, CTime, IFFField}
 import com.context.{SqlStageRequest, StageRequest}
 import com.datahandle.tran.FunctionExecutor
 import com.log.LogBuilder
@@ -31,7 +32,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val inputDF = appContext.getDataFrame(inputTableInfo)
     val outputTable = sqlStageRequest.outputTable
     for(field <- outputTable.body.fields){
-      field.expression = processMethod(field.fieldExpression)
+      field.expression = processMethod(field.fieldExpression,field)
       field.initExpression
     }
     val inputField = inputTableInfo.body.fields.filter(!_.filter)
@@ -91,8 +92,12 @@ val mapFun:(Iterator[Row] => Iterator[Row])= { rows=>
 }*/
     import com.boc.iff.CommonFieldConvertorContext._
     implicit val fieldConvertorContext = new CommonFieldConvertorContext(null, null, null)
+    /*val pro = new Properties
+    pro.load(new FileInputStream(appContext.jobConfig.configPath))*/
     val mapFun:(Row => Row)= { r =>
-      val newData = new ArrayBuffer[String]
+     /* val logger = new ECCLogger
+      logger.configure(pro)*/
+      val newData = new ArrayBuffer[Any]
       val valueObjectMap = new util.HashMap[String, Any]
       for (index <- 0 until inputField.length) {
         val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
@@ -103,14 +108,24 @@ val mapFun:(Iterator[Row] => Iterator[Row])= { rows=>
       for (field <- outputTable.body.fields) {
         express = field.fieldExpression
         val value = if (valueObjectMap.containsKey(express)) valueObjectMap.get(express) else field.getValue(valueObjectMap)
-        newData += field.objectToString(value)
+        val newValue = field.typeInfo match {
+          case fieldType: CDate => field.objectToString(value)
+          case fieldType: CTime => field.objectToString(value)
+          case _ => value
+        }
+        newData += newValue
       }
       Row.fromSeq(newData)
     }
     val newRdd = inputDF.map(mapFun)
     val structFields = new util.ArrayList[StructField]()
     for (f <- sqlStageRequest.outputTable.body.fields) {
-      structFields.add(DataTypes.createStructField(f.name, DataTypes.StringType, true))
+      val tp = (f.typeInfo match {
+        case fieldType: CInteger => DataTypes.IntegerType
+        case fieldType: CDecimal => DataTypes.DoubleType
+        case _ => DataTypes.StringType
+      })
+      structFields.add(DataTypes.createStructField(f.name.toUpperCase, tp, true))
     }
     val structType = DataTypes.createStructType(structFields)
     val df = appContext.sqlContext.createDataFrame(newRdd,structType)
@@ -120,10 +135,11 @@ val mapFun:(Iterator[Row] => Iterator[Row])= { rows=>
     df
   }
 
-  protected def processMethod(express:String):String={
+  protected def processMethod(express:String,field:IFFField):String={
     var exp = express
     for(func<-functions){
       val f = "FN."+func
+      val replaceFun = "fn." + (if(func.equals("TO_NUMBER") && field.typeInfo.isInstanceOf[CDecimal])"to_double" else func.toLowerCase())
       val e = exp.toUpperCase()
       var index = 0
       val ar = new ArrayBuffer[(Int, Int)]
@@ -140,7 +156,7 @@ val mapFun:(Iterator[Row] => Iterator[Row])= { rows=>
           if(i==0&&pos._1>0){
             rplExp.append(exp.substring(0,pos._1))
           }
-          rplExp.append(f.toLowerCase())
+          rplExp.append(replaceFun)
           val curStr = if((i+1)<ar.size){
             exp.substring(pos._1+pos._2,ar(i+1)._1)
           }else{

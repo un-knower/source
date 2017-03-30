@@ -5,6 +5,7 @@ import com.context.{SqlStageRequest, StageAppContext, StageRequest}
 import com.log.LogBuilder
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.storage.StorageLevel
 
 /**
   * Created by cvinc on 2016/6/8.
@@ -22,7 +23,9 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
     var resultDF = handle(sqlStageRequest)
     //结果集过滤
     if(StringUtils.isNotEmpty(sqlStageRequest.logicFilter)){
+      resultDF.persist(StorageLevel.MEMORY_AND_DISK)
       resultDF = resultDF.filter(sqlStageRequest.logicFilter)
+
     }
     //提取结果集数量
     if(sqlStageRequest.limitFilter>0){
@@ -81,6 +84,9 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       }
       sql.append(field.fieldExpression).append(" as ").append(field.name)
       firstColF = false
+    }
+    if(this.isInstanceOf[SortStageHandle]){
+      sql.append(",")
     }
     if(StringUtils.isEmpty(sqlStageRequest.from)){
       throw new StageInfoErrorException("Stage[%s]-xml define error, property from is required".format(sqlStageRequest.stageId))

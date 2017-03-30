@@ -71,7 +71,7 @@ class StageEngine private(){
   }
 
   def getTableUsedTime(tableName:String):Int = {
-    this.tableUsedTime(tableName)
+    if(!this.tableUsedTime.contains(tableName)) 0 else this.tableUsedTime(tableName)
   }
 
   def hasMoreStage():Boolean={

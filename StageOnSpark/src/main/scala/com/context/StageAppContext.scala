@@ -75,7 +75,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
     if(dataSetObjectMap.containsKey(table)){
       dataSetObjectMap.get(table)
     }else{
-      throw TableLoadException("Stage[%s] | Table[%s] can not be found，check if it loaded".format(stageEngine.currentStage().stageId,table))
+      throw TableLoadException("Stage[%s] | Table[%s] can not be found,check if it loaded".format(stageEngine.currentStage().stageId,table))
     }
   }
 
@@ -83,6 +83,7 @@ class StageAppContext(val sparkContext:SparkContext,val jobConfig:SparkJobConfig
   def addDataSet(tableInfo:TableInfo,dataSet:DataFrame): Unit ={
     dataSetObjectMap.put(tableInfo.targetName,dataSet)
     dataSet.registerTempTable(tableInfo.targetName)
+    logger.info("DataFrameManage","Add DataFrame[%s]".format(tableInfo.targetName))
     if(!tableInfo.cacheFlag&&tableInfo.remainUsedTimes>1){
       logger.info("DataFrameManage","Cache DataFrame[%s]".format(tableInfo.targetName))
       dataSet.persist(StorageLevel.MEMORY_AND_DISK)

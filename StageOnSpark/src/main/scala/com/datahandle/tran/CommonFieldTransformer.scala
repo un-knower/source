@@ -40,8 +40,12 @@ sealed trait CommonFieldTransformer[T<:Any]  {
     fieldValue.toString.length
   }
 
-  def to_number(fieldValue:T):Any={
+  def to_number(fieldValue:T):Int={
     throw new StageHandleException("to_number do not apply for type[%s]".format(fieldValue.getClass.getSimpleName))
+  }
+
+  def to_double(fieldValue:T):Double={
+    throw new StageHandleException("to_double do not apply for type[%s]".format(fieldValue.getClass.getSimpleName))
   }
 
   def trim(fieldValue:T,pattern:String):String={
@@ -106,8 +110,11 @@ object CommonFieldTransformer {
       df.parse(fieldValue)
     }
 
-    override def substring(fieldValue:String, startPos:Int,endPos:Int):String={
-      fieldValue.substring(startPos,endPos)
+    override def substring(fieldValue:String, startPos:Int,subLength:Int):String={
+      if(subLength>0)
+        fieldValue.substring(startPos,startPos+subLength)
+      else
+        fieldValue.substring(startPos+subLength+1,startPos+1)
     }
 
     override def sublenstring(fieldValue:String, startPos:Int,subLength:Int):String={
@@ -119,6 +126,10 @@ object CommonFieldTransformer {
 
     override def to_number(fieldValue:String):Int={
       fieldValue.toInt
+    }
+
+    override def to_double(fieldValue:String):Double={
+      fieldValue.toDouble
     }
 
     override def to_uppercase(fieldValue:String):String={
@@ -140,7 +151,7 @@ object CommonFieldTransformer {
         }
         val pc = pattern.charAt(0)
         var result:String = null
-        for(i<-0 until fieldValue.length if result!=null) if(pc!=fieldValue.charAt(i)) result = fieldValue.substring(i)
+        for(i<-0 until fieldValue.length if result==null) if(pc!=fieldValue.charAt(i)) result = fieldValue.substring(i)
         result
       }else{
         ""
@@ -154,7 +165,12 @@ object CommonFieldTransformer {
         }
         val pc = pattern.charAt(0)
         var result:String = null
-        for(i<- fieldValue.length until 0 if result!=null) if(pc!=fieldValue.charAt(i)) result = fieldValue.substring(0,i)
+        val len = fieldValue.length
+        for(i<- 0 until len if result==null) {
+          if(pc!=fieldValue.charAt(len-i-1)) {
+            result = fieldValue.substring(0,len-i)
+          }
+        }
         result
       }else{
         ""
