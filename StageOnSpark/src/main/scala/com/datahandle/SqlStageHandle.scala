@@ -20,7 +20,19 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       throw StageInfoErrorException("Stage[%s] -- inputTable required".format(sqlStageRequest.stageId))
     }
     prepare(sqlStageRequest)
-    var resultDF = handle(sqlStageRequest)
+    val resultDF = filterDF(sqlStageRequest,handle(sqlStageRequest))
+    if(appContext.jobConfig.debug&&sqlStageRequest.debugInfo!=null&&(!"IGNORE".equals(sqlStageRequest.debugInfo.method))){
+      if(StringUtils.isEmpty(sqlStageRequest.debugInfo.file)){
+        sqlStageRequest.debugInfo.file = "%s/%s/%s".format(appContext.jobConfig.defaultDebugFilePath,appContext.sparkContext.applicationId,sqlStageRequest.stageId)
+      }
+      saveDebug(sqlStageRequest.debugInfo,resultDF)
+    }
+    appContext.addTable(sqlStageRequest.outputTable)
+    appContext.addDataSet(sqlStageRequest.outputTable, resultDF)
+  }
+
+  protected def filterDF(sqlStageRequest:SqlStageRequest,df:DataFrame):DataFrame={
+    var resultDF:DataFrame = df
     //结果集过滤
     if(StringUtils.isNotEmpty(sqlStageRequest.logicFilter)){
       resultDF.persist(StorageLevel.MEMORY_AND_DISK)
@@ -31,14 +43,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
     if(sqlStageRequest.limitFilter>0){
       resultDF = resultDF.limit(sqlStageRequest.limitFilter)
     }
-    if(appContext.jobConfig.debug&&sqlStageRequest.debugInfo!=null&&(!"IGNORE".equals(sqlStageRequest.debugInfo.method))){
-      if(StringUtils.isEmpty(sqlStageRequest.debugInfo.file)){
-        sqlStageRequest.debugInfo.file = "%s/%s/%s".format(appContext.jobConfig.defaultDebugFilePath,appContext.sparkContext.applicationId,sqlStageRequest.stageId)
-      }
-      saveDebug(sqlStageRequest.debugInfo,resultDF)
-    }
-    appContext.addTable(sqlStageRequest.outputTable)
-    appContext.addDataSet(sqlStageRequest.outputTable, resultDF)
+    resultDF
   }
 
   protected def prepare(sqlStageRequest: SqlStageRequest):Boolean={
@@ -76,7 +81,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
 
   protected def getSql(sqlStageRequest: SqlStageRequest):String={
     val sql = new StringBuffer(" select ")
-    val outPutFields = sqlStageRequest.outputTable.body.fields
+    val outPutFields = sqlStageRequest.outputTable.body.fields.filter(x=>(!(x.name.toUpperCase.equals("_RAND_ID")||x.name.toUpperCase.equals("_ROW_ID"))))
     var firstColF = true
     for(field<-outPutFields){
       if(!firstColF){
@@ -84,9 +89,6 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       }
       sql.append(field.fieldExpression).append(" as ").append(field.name)
       firstColF = false
-    }
-    if(this.isInstanceOf[SortStageHandle]){
-      sql.append(",")
     }
     if(StringUtils.isEmpty(sqlStageRequest.from)){
       throw new StageInfoErrorException("Stage[%s]-xml define error, property from is required".format(sqlStageRequest.stageId))

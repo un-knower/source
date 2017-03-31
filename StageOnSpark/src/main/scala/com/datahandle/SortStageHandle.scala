@@ -4,6 +4,7 @@ import com.boc.iff.exception.StageInfoErrorException
 import com.context.{SqlStageRequest, StageRequest}
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.DataFrame
+import org.apache.spark.storage.StorageLevel
 
 /**
   * Created by scutlxj on 2017/2/14.
@@ -18,10 +19,23 @@ class SortStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     if(sqlStageRequest.outputTable.body==null||sqlStageRequest.outputTable.body.fields==null){
       sqlStageRequest.outputTable.body = appContext.getTable(sqlStageRequest.inputTables.get(0)).body
     }
-    if(StringUtils.isEmpty(sqlStageRequest.from)){
-      sqlStageRequest.from = sqlStageRequest.inputTables.get(0)
+    var inputDF = appContext.getDataFrame(sqlStageRequest.inputTables.get(0))
+    if(StringUtils.isNotEmpty(sqlStageRequest.logicFilter)) {
+      inputDF.persist(StorageLevel.MEMORY_AND_DISK)
+      inputDF = inputDF.filter(sqlStageRequest.logicFilter)
+      val newTableName = sqlStageRequest.inputTables.get(0) + "Sort_Tmp"
+      inputDF.registerTempTable(newTableName)
+      sqlStageRequest.from = newTableName
     }
-    super.handle(sqlStageRequest)
+    //提取结果集数量
+    val df = if(sqlStageRequest.limitFilter>0){
+      super.handle(sqlStageRequest).limit(sqlStageRequest.limitFilter)
+    }else{
+      super.handle(sqlStageRequest)
+    }
+    df
   }
+
+  override def filterDF(sqlStageRequest: SqlStageRequest,df:DataFrame) = df
 
 }

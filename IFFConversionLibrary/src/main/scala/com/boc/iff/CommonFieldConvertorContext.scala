@@ -147,7 +147,7 @@ sealed trait CommonFieldWithConvertor {
   }
 
   def objectToString(fieldValue:Any):String = {
-    commonFieldConvertorContext.objectToString(iffField,fieldValue).toString
+    commonFieldConvertorContext.objectToString(iffField,fieldValue)
   }
 
   def toObject(fieldValue:String):Any = {

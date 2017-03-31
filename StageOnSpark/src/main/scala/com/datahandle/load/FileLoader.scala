@@ -110,7 +110,7 @@ abstract class FileLoader extends Serializable{
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
-      val tp = f match {
+      val tp = f.typeInfo match {
         case fieldType: CInteger => DataTypes.IntegerType
         case fieldType: CDecimal => DataTypes.DoubleType
         case _ => DataTypes.StringType
