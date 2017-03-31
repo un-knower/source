@@ -220,8 +220,10 @@ object CommonFieldTransformer {
     override def round(fieldValue: Double,pattern:String):Double = {
       val patt = pattern.trim
       var decLen = 0
-      if(patt.indexOf(".")>0){
+      if(patt.indexOf(".")>0 && (patt.size>patt.indexOf(".")+1)){
         decLen = patt.substring(patt.indexOf(".")+1,patt.size).toArray.filter(_!=',' ).size
+      }else{
+        decLen = patt.toInt
       }
       BigDecimal(fieldValue).setScale(decLen,BigDecimal.RoundingMode.HALF_UP).toDouble
     }
@@ -313,6 +315,10 @@ object CommonFieldTransformer {
       var patt = pattern.trim
       if(patt.substring(0,1)=="+"|| patt.substring(0,1)=="-"){
         signSymbol=patt.substring(0,1)
+        if(fieldValue > 0.0)
+          signSymbol = "+"
+        else
+          if(fieldValue < 0.0) signSymbol = ""       
         patt=patt.substring(1,patt.size)
       }
       if(patt.indexOf(".")>0){
