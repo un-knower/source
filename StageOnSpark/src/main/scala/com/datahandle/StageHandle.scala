@@ -127,6 +127,7 @@ trait StageHandle[T<:StageRequest] {
     protected def loadFieldTypeInfo(tableInfo:TableInfo): Unit = {
         if(tableInfo.body!=null&&tableInfo.body.fields!=null) {
             for (field <- tableInfo.body.fields.toArray) {
+                if(field.name.toUpperCase.equals("_RAND_ID")||field.name.toUpperCase.equals("_ROW_ID"))field.`type` = "cint32"
                 if (field.typeInfo == null&&StringUtils.isNotEmpty(field.`type`)) {
                     field.typeInfo = IFFFieldType.getFieldType(tableInfo, null, field)
                 }

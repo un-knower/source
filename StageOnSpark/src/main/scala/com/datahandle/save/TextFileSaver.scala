@@ -1,5 +1,8 @@
 package com.datahandle.save
-import com.boc.iff.{CommonFieldConvertorContext, DFSUtils}
+import java.io.FileInputStream
+import java.util.Properties
+
+import com.boc.iff.{CommonFieldConvertorContext, DFSUtils, ECCLogger}
 import org.apache.hadoop.fs.{FileStatus, FileSystem, Path}
 import org.apache.spark.sql.{DataFrame, Row}
 
