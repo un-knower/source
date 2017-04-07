@@ -30,7 +30,7 @@ abstract class FileSaver extends Serializable{
     this.fileInfo = fileInfo
     logBuilder = stageAppContext.constructLogBuilder()
     val tmpPath = getTempPath(inputTable)
-    val df = stageAppContext.getDataFrame(tableInfo)
+    val df = if("Y".equals(fileInfo.singleFileFlag)) stageAppContext.getDataFrame(tableInfo).repartition(1) else stageAppContext.getDataFrame(tableInfo)
     implicit val hadoopConfig = sparkContext.hadoopConfiguration
     DFSUtils.deleteDir(tmpPath)
     try{

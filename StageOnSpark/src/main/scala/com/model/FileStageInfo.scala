@@ -20,6 +20,7 @@ class FileStageInfo extends StageInfo{
   @BeanProperty
   var fileInfos:java.util.List[FileInfo] = _
 
+
   def getStageRequest(implicit stageAppContext: StageAppContext):StageRequest={
     val request:FileStageRequest = operationType match {
       case OperationType.READ =>
@@ -58,6 +59,8 @@ class FileInfo{
   var targetSeparator:String = "\001"
   @BeanProperty
   var dataLineEndWithSeparatorF:Boolean = false
+  @BeanProperty
+  var singleFileFlag:String = "N"
 }
 
 object FileInfo{
