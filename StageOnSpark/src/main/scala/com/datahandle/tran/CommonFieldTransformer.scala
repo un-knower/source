@@ -333,17 +333,17 @@ object CommonFieldTransformer {
         val intPatt = patt.substring(0,intPattLen)
         var intPart = ""
         if(intPatt.indexOf(",")>0){
-          intPart = pointLeft_to_char(fieldValue,intPatt)
+          intPart = pointLeft_to_char(fValue,intPatt)
         }else{
-          intPart = new DecimalFormat(intPatt.replace('9','#')).format(math.floor(fieldValue))
+          intPart = new DecimalFormat(intPatt.replace('9','#')).format(math.floor(fValue))
         }
 
         val decPatt = patt.substring(intPattLen+1,patt.size)
         var decPart = ""
         if(decPatt.indexOf(",")>0){
-          decPart = "." + pointRight_to_char(fieldValue,decPatt)
+          decPart = "." + pointRight_to_char(fValue,decPatt)
         }else{
-          val valueStr = new DecimalFormat(valueFormat).format(fieldValue)
+          val valueStr = new DecimalFormat(valueFormat).format(fValue)
           val intLen = valueStr.indexOf(".")
           var decStr = ""
           if(intLen>=0)
@@ -354,7 +354,7 @@ object CommonFieldTransformer {
         }
         signSymbol+intPart+decPart
       }else{
-        val ret = new DecimalFormat(patt.replace('9','#')).format(fieldValue)
+        val ret = new DecimalFormat(patt.replace('9','#')).format(fValue)
         signSymbol+ret
       }
     }
