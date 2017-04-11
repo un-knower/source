@@ -313,13 +313,20 @@ object CommonFieldTransformer {
 
       var signSymbol = ""
       var patt = pattern.trim
+      var fValue=round(fieldValue,pattern)
       if(patt.substring(0,1)=="+"|| patt.substring(0,1)=="-"){
         signSymbol=patt.substring(0,1)
         if(fieldValue > 0.0)
           signSymbol = "+"
         else
-          if(fieldValue < 0.0) signSymbol = ""       
+          if(fieldValue < 0.0) {
+           signSymbol = "-"
+           fValue=round(0-fieldValue,pattern)
+          }
         patt=patt.substring(1,patt.size)
+      }else if(fieldValue < 0.0) {
+        fValue=round(0-fieldValue,pattern)
+        signSymbol = "-"
       }
       if(patt.indexOf(".")>0){
         val intPattLen = patt.indexOf(".")
@@ -399,7 +406,7 @@ object CommonFieldTransformer {
         case "YYYYMMDD" => new SimpleDateFormat("yyyyMMdd").format(fieldValue)
         case "YYYY-MM-DD" => new SimpleDateFormat("yyyy-MM-dd").format(fieldValue)
         case "YYYY/MM/DD" =>  new SimpleDateFormat("yyyy/MM/dd").format(fieldValue)
-        case "YYMMDD" => new SimpleDateFormat("yy/MM/dd").format(fieldValue)
+        case "YYMMDD" => new SimpleDateFormat("yyMMdd").format(fieldValue)
         case "YYYY/M/D" => new SimpleDateFormat("yyyy/M/d").format(fieldValue)
         case "YYYY" => new SimpleDateFormat("yyyy").format(fieldValue)
         case "MM" => new SimpleDateFormat("MM").format(fieldValue)
