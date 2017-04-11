@@ -1,9 +1,12 @@
 package com.datahandle
 
+import java.io.FileInputStream
 import java.util
+import java.util.Properties
 
+import com.boc.iff.ECCLogger
 import com.boc.iff.exception.StageInfoErrorException
-import com.boc.iff.model.{CDecimal, CInteger}
+import com.boc.iff.model.{CDate, CDecimal, CInteger}
 import com.context.{SqlStageRequest, StageRequest}
 import org.apache.commons.lang3.StringUtils
 import org.apache.spark.sql.types.{DataTypes, StructField}
@@ -13,7 +16,7 @@ import org.apache.spark.storage.StorageLevel
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 
 /**
-  * Created by scutlxj on 2017/2/14. 测试github
+  * Created by scutlxj on 2017/2/14.
   */
 class SortStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
 
@@ -42,7 +45,6 @@ class SortStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val fields = sqlStageRequest.outputTable.getBody.fields
     val randIndex = sqlStageRequest.outputTable.getBody.getFieldIndex("_RAND_ID")
     val rowIndex = sqlStageRequest.outputTable.getBody.getFieldIndex("_ROW_ID")
-    logBuilder.logger.info("FFS","randIndex="+randIndex+" rowIndex="+rowIndex)
     if(randIndex>=0||rowIndex>=0){
       val comparator = getComparator(sqlStageRequest)
       val checkEqual = getCheckEqual(sqlStageRequest)
@@ -84,6 +86,7 @@ class SortStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
         val tp = (f.typeInfo match {
           case fieldType: CInteger => DataTypes.IntegerType
           case fieldType: CDecimal => DataTypes.DoubleType
+          case fieldType: CDate => DataTypes.DateType
           case _ => DataTypes.StringType
         })
         structFields.add(DataTypes.createStructField(f.name.toUpperCase, tp, true))

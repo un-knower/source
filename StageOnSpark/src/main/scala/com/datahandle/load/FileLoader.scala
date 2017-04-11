@@ -1,10 +1,13 @@
 package com.datahandle.load
 
-import java.io.File
+import java.io.{File, FileInputStream}
+import java.text.SimpleDateFormat
 import java.util
+import java.util.Properties
 
+import com.boc.iff.ECCLogger
 import com.boc.iff.exception.StageInfoErrorException
-import com.boc.iff.model.{CDecimal, CInteger, IFFField, IFFFieldType, IFFSection}
+import com.boc.iff.model.{CDate, CDecimal, CInteger, IFFField, IFFFieldType, IFFSection}
 import com.config.SparkJobConfig
 import com.context.{FileReadStageRequest, StageAppContext}
 import com.log.LogBuilder
@@ -75,7 +78,6 @@ abstract class FileLoader extends Serializable{
   protected def changeRddToDataFrame(rdd:RDD[String]): DataFrame ={
     val fieldDelimiter = this.fieldDelimiter
     val fields: List[IFFField] = tableInfo.getBody.fields.filter(!_.filter)
-
     val basePk2Map= (x:String) => {
       val rowData = StringUtils.splitByWholeSeparatorPreserveAllTokens(x, fieldDelimiter)
       val array = new ArrayBuffer[Any]
@@ -84,19 +86,36 @@ abstract class FileLoader extends Serializable{
           fields(v).typeInfo match {
             case fieldType: CInteger => array += new Integer(rowData(v))
             case fieldType: CDecimal => array += new java.lang.Double(rowData(v))
+            case fieldType: CDate => new SimpleDateFormat(fieldType.pattern).format(rowData(v))
             case _ => array += rowData(v)
           }
         }else {
-          array += rowData(v)
+          array += null
         }
       }
       Row.fromSeq(array)
     }
+
+  /*  val pro = new Properties
+    pro.load(new FileInputStream(stageAppContext.jobConfig.configPath))
+    val mapPartitionFun:(Iterator[String] => Iterator[Row])= { rs =>
+      val logger = new ECCLogger
+      logger.configure(pro)
+      logger.info("FileLoader","*************************FileLoader*****************************************8")
+      val resultList = new ListBuffer[Row]
+      while(rs.hasNext) {
+        val x = rs.next()
+        resultList+=basePk2Map(x)
+      }
+      resultList.iterator
+    }*/
+
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
       val tp = f.typeInfo match {
         case fieldType: CInteger => DataTypes.IntegerType
         case fieldType: CDecimal => DataTypes.DoubleType
+        case fieldType: CDate => DataTypes.DateType
         case _ => DataTypes.StringType
       }
       structFields.add(DataTypes.createStructField(f.name.toUpperCase, tp, true))

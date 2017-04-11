@@ -42,5 +42,7 @@ object StageInfo extends Serializable {
     val Union = "UNION"
     val Transformer = "TRANSFORMER"
     val Deduplicate = "DEDUPLICATE"
+    val Lookup = "LOOKUP"
+    val Merge = "MERGE"
   }
 }

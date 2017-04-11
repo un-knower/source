@@ -14,6 +14,8 @@ object HandleContext {
     implicit object unionStageHandle extends UnionStageHandle[UnionStageRequest]
     implicit object transformerStageHandle extends TransformerStageHandle[TransformerStageRequest]
     implicit object deduplicateStageHandle extends DeduplicateStageHandle[DeduplicateStageRequest]
+    implicit object lookupStageHandle extends LookupStageHandle[LookupStageRequest]
+    implicit object mergeStageHandle extends MergeStageHandle[MergeStageRequest]
 
 
 

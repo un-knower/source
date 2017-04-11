@@ -2,7 +2,7 @@ package com.context
 
 import java.util.List
 
-import com.model.TableInfo
+import com.model.{DeduplicateInfo, TableInfo}
 
 import scala.beans.BeanProperty
 
@@ -34,3 +34,16 @@ class TransformerStageRequest extends SqlStageRequest
 class SortStageRequest extends SqlStageRequest
 
 class DeduplicateStageRequest extends SqlStageRequest
+
+class LookupStageRequest extends SqlStageRequest{
+  @BeanProperty
+  var mainTable:String = ""
+
+  @BeanProperty
+  var deduplicateInfos:List[DeduplicateInfo] = _
+}
+
+class MergeStageRequest extends SqlStageRequest{
+  @BeanProperty
+  var insertTableInfo:TableInfo = _
+}

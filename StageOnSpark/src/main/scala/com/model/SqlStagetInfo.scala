@@ -38,6 +38,9 @@ class SqlStageInfo extends StageInfo{
       case StageType.Transformer => new TransformerStageRequest
       case StageType.Union => new UnionStageRequest
       case StageType.Deduplicate => new DeduplicateStageRequest
+      case StageType.Lookup => new LookupStageRequest
+      case StageType.Merge => new MergeStageRequest
+
     }
     sqlStageRequest.outputTable = this.outPutTable
     sqlStageRequest.inputTables = this.inputTables
