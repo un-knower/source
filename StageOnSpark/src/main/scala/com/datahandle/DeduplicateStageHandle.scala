@@ -1,6 +1,7 @@
 package com.datahandle
 
 import java.util
+import java.lang.Long
 
 import com.boc.iff.exception.StageInfoErrorException
 import com.boc.iff.model.{CDate, CDecimal, CInteger}
@@ -47,7 +48,7 @@ class DeduplicateStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
       val tp = (f.typeInfo match {
-        case fieldType: CInteger => DataTypes.IntegerType
+        case fieldType: CInteger => DataTypes.LongType
         case fieldType: CDecimal => DataTypes.DoubleType
         case fieldType: CDate => DataTypes.DateType
         case _ => DataTypes.StringType
@@ -74,8 +75,8 @@ class DeduplicateStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
         val o2 = r2(s._1)
         result = s._2 match {
           case "desc" => if (o2 == null)  -1 else if (o1 == null) 1 else {
-            if(o1.isInstanceOf[Integer]){
-              o2.asInstanceOf[Integer].compareTo(o1.asInstanceOf[Integer])
+            if(o1.isInstanceOf[Long]){
+              o2.asInstanceOf[Long].compareTo(o1.asInstanceOf[Long])
             }else if(o1.isInstanceOf[java.lang.Double]){
               o2.asInstanceOf[java.lang.Double].compareTo(o1.asInstanceOf[java.lang.Double])
             }else if(o1.isInstanceOf[java.util.Date]){
@@ -85,8 +86,8 @@ class DeduplicateStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
             }
           }
           case _ => if (o1 == null)  -1 else if (o2 == null) 1 else{
-            if(o1.isInstanceOf[Integer]){
-              o1.asInstanceOf[Integer].compareTo(o2.asInstanceOf[Integer])
+            if(o1.isInstanceOf[Long]){
+              o1.asInstanceOf[Long].compareTo(o2.asInstanceOf[Long])
             }else if(o1.isInstanceOf[java.lang.Double]){
               o1.asInstanceOf[java.lang.Double].compareTo(o2.asInstanceOf[java.lang.Double])
             }else if(o1.isInstanceOf[java.util.Date]){

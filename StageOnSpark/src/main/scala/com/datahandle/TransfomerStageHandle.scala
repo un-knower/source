@@ -44,8 +44,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
       val newData = new ArrayBuffer[Any]
       val valueObjectMap = new util.HashMap[String, Any]
       for (index <- 0 until inputField.length) {
-        val fieldValue = if (r.get(index) != null) r.get(index).toString else ""
-        valueObjectMap.put(inputField(index).name.toUpperCase(), inputField(index).toObject(fieldValue))
+        valueObjectMap.put(inputField(index).name.toUpperCase(), r.get(index))
       }
       var express = ""
       valueObjectMap.put("fn", fun)
@@ -81,7 +80,7 @@ class TransformerStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
     val structFields = new util.ArrayList[StructField]()
     for (f <- sqlStageRequest.outputTable.body.fields) {
       val tp = (f.typeInfo match {
-        case fieldType: CInteger => DataTypes.IntegerType
+        case fieldType: CInteger => DataTypes.LongType
         case fieldType: CDecimal => DataTypes.DoubleType
         case fieldType: CDate => DataTypes.DateType
         case _ => DataTypes.StringType

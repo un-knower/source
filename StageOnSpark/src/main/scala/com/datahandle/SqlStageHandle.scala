@@ -25,7 +25,7 @@ class SqlStageHandle[T<:StageRequest] extends StageHandle[T] {
       if(StringUtils.isEmpty(sqlStageRequest.debugInfo.file)){
         sqlStageRequest.debugInfo.file = "%s/%s/%s".format(appContext.jobConfig.defaultDebugFilePath,appContext.sparkContext.applicationId,sqlStageRequest.stageId)
       }
-      saveDebug(sqlStageRequest.debugInfo,resultDF)
+      saveDebug(sqlStageRequest.debugInfo,resultDF,sqlStageRequest.outputTable)
     }
     appContext.addTable(sqlStageRequest.outputTable)
     appContext.addDataSet(sqlStageRequest.outputTable, resultDF)

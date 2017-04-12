@@ -1,6 +1,7 @@
 package com.datahandle.load
 
 import java.io._
+import java.text.SimpleDateFormat
 import java.util
 import java.util.Properties
 import java.util.concurrent.LinkedBlockingQueue
@@ -8,7 +9,7 @@ import java.util.zip.GZIPInputStream
 
 import com.boc.iff._
 import com.boc.iff.exception.RecordNotFixedException
-import com.boc.iff.model.{CDecimal, CInteger, IFFField, IFFFileInfo}
+import com.boc.iff.model.{CDate, CDecimal, CInteger, IFFField, IFFFileInfo}
 import com.model.FileInfo.FileType
 import org.apache.commons.lang3.StringUtils
 import org.apache.hadoop.conf.Configuration
@@ -370,7 +371,7 @@ class SimpleFileLoader extends FileLoader{
           if (fields.size>0) {
             var dataInd = 0
             val dataMap = new util.HashMap[String,Any]()
-            val ab = new ArrayBuffer[String]()
+            val ab = new ArrayBuffer[Any]()
             var success = true
             var errorMessage = ""
             var currentName = ""
@@ -411,7 +412,17 @@ class SimpleFileLoader extends FileLoader{
                 try {
                   success = if (iffField.validateField(dataMap)) true else false
                   if(success){
-                    ab+= convertField(iffField, dataMap)
+                    val value = convertField(iffField, dataMap)
+                    if(StringUtils.isNotEmpty(value)) {
+                      ab+= iffField.typeInfo match {
+                        case fieldType: CInteger =>  new java.lang.Long(value)
+                        case fieldType: CDecimal =>  new java.lang.Double(value)
+                        case fieldType: CDate =>  new java.sql.Date(new SimpleDateFormat(fieldType.pattern).parse(value).getTime)
+                        case _ => value
+                      }
+                    }else {
+                      ab += null
+                    }
                   }else{
                     errorMessage =  iffField.name + " ERROR validateField"
                   }

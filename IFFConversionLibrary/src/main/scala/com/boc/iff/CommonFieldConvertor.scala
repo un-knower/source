@@ -164,12 +164,12 @@ object CommonFieldConvertor {
 
 
   trait CIntegerFieldConvertor extends CommonFieldConvertor[CInteger]{
-    override def toObject(fieldType: CInteger, fieldValue: String):Any={fieldValue.toInt}
+    override def toObject(fieldType: CInteger, fieldValue: String):Any={fieldValue.toLong}
 
     override def objectToString(fieldType: CInteger,fieldValue: Any) = {
       val pattern = "############"
       val format = new DecimalFormat(pattern)
-      format.format(fieldValue.asInstanceOf[Integer])
+      format.format(fieldValue.asInstanceOf[Long])
     }
   }
   implicit object CIntegerField extends CIntegerFieldConvertor

@@ -84,7 +84,7 @@ class SortStageHandle[T<:StageRequest] extends SqlStageHandle[T]{
       val structFields = new util.ArrayList[StructField]()
       for(f <- fields) {
         val tp = (f.typeInfo match {
-          case fieldType: CInteger => DataTypes.IntegerType
+          case fieldType: CInteger => DataTypes.LongType
           case fieldType: CDecimal => DataTypes.DoubleType
           case fieldType: CDate => DataTypes.DateType
           case _ => DataTypes.StringType

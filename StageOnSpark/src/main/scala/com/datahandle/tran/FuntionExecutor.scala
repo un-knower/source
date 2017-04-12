@@ -1,15 +1,8 @@
 package com.datahandle.tran
 
-import com.boc.iff.CommonFieldConvertor
-import com.boc.iff.model.{IFFField, IFFFieldType}
-import java.util.Date
-import java.lang.{Double, Integer}
-
-import com.boc.iff.exception.StageHandleException
-import org.apache.commons.lang3.StringUtils
-
-import scala.collection.mutable
-import java.lang.reflect.Method
+import java.sql.Date
+import java.lang.{Double,Long}
+import java.text.SimpleDateFormat
 
 /**
   * Created by scutlxj on 2017/2/24.
@@ -42,7 +35,7 @@ class FunctionExecutor extends Serializable{
     if(value!=null) {
       value match {
         case value:String => execute(fun, value, pattern: _*)
-        case value:Integer => execute(fun, value, pattern: _*)
+        case value:Long => execute(fun, value, pattern: _*)
         case value:Double => execute(fun, value, pattern: _*)
         case value:Date => execute(fun, value, pattern: _*)
         case _ => execute(fun, value.asInstanceOf[String], pattern: _*)
@@ -68,7 +61,7 @@ class FunctionExecutor extends Serializable{
   def to_date(value:Any,pattern:String):Date={
     val newValue = executeFunction("to_date",value,pattern)
     if(newValue!=null){
-      newValue.asInstanceOf[Date]
+      new Date(newValue.asInstanceOf[java.util.Date].getTime)
     }else{
       null
     }
@@ -104,18 +97,18 @@ class FunctionExecutor extends Serializable{
   def length(value:Any):Int={
     val newValue = executeFunction("length",value)
     if(newValue!=null){
-      newValue.asInstanceOf[Int]
+     newValue.asInstanceOf[Int]
     }else{
       0
     }
   }
 
-  def to_number(value:Any):Any={
-    executeFunction("to_number",value)
+  def to_number(value:Any):Long={
+    executeFunction("to_number",value).asInstanceOf[Long]
   }
 
-  def to_double(value:Any):Any={
-    executeFunction("to_double",value)
+  def to_double(value:Any):Double={
+    executeFunction("to_double",value).asInstanceOf[Double]
   }
 
   def trim(value:Any,pattern:String):String={
@@ -164,7 +157,8 @@ class FunctionExecutor extends Serializable{
     * @return
     */
   def current_date():Date={
-    null
+    val format = new SimpleDateFormat("yyyy-MM-dd")
+    Date.valueOf(format.format(new java.util.Date()))
   }
 
   def current_monthend(value:Any):Date={
@@ -176,18 +170,20 @@ class FunctionExecutor extends Serializable{
     }
   }
 
-  def trunc(value:Any,pattern:String*):Any={
-    val pt = if(pattern==null||pattern.length==0) "" else pattern(0)
-    executeFunction("trunc",value,pt)
+  def trunc(value:Any):Any={
+    executeFunction("trunc",value,"")
+  }
+
+  def trunc(value:Any,pattern:String):Any={
+    executeFunction("trunc",value,pattern)
   }
 
   def round(value:Any,pattern:String):Any={
     executeFunction("round",value,pattern)
   }
 
-  def replace(value:Any,searchStr:String,replaceStr:String,pos:Int*):String={
-    val ps = if(pos==null||pos.length==0) 0 else pos(0)
-    val newValue = executeFunction("replace",value,searchStr,replaceStr,ps)
+  def replace(value:Any,searchStr:String,replaceStr:String,pos:Int):String={
+    val newValue = executeFunction("replace",value,searchStr,replaceStr,pos)
     if(newValue!=null){
       newValue.asInstanceOf[String]
     }else{

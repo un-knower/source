@@ -1,9 +1,10 @@
 package com.datahandle.tran
 
 import java.text.{DecimalFormat, SimpleDateFormat}
-import java.text.ParseException
-import java.util.{Date,Calendar}
+import java.util.Calendar
+import java.sql.Date
 import java.lang.Double
+import java.lang.Long
 import scala.util.matching.Regex
 
 import com.boc.iff.exception.{StageHandleException, StageInfoErrorException}
@@ -40,7 +41,7 @@ sealed trait CommonFieldTransformer[T<:Any]  {
     fieldValue.toString.length
   }
 
-  def to_number(fieldValue:T):Int={
+  def to_number(fieldValue:T):Long={
     throw new StageHandleException("to_number do not apply for type[%s]".format(fieldValue.getClass.getSimpleName))
   }
 
@@ -107,7 +108,7 @@ object CommonFieldTransformer {
         case _ => new SimpleDateFormat(pattern)
       }
       df.setLenient(false)
-      df.parse(fieldValue)
+      new Date(df.parse(fieldValue).getTime)
     }
 
     override def substring(fieldValue:String, startPos:Int,subLength:Int):String={
@@ -124,8 +125,8 @@ object CommonFieldTransformer {
         fieldValue.substring(startPos+subLength,startPos)
     }
 
-    override def to_number(fieldValue:String):Int={
-      fieldValue.toInt
+    override def to_number(fieldValue:String):Long={
+      fieldValue.toLong
     }
 
     override def to_double(fieldValue:String):Double={
@@ -228,7 +229,7 @@ object CommonFieldTransformer {
       BigDecimal(fieldValue).setScale(decLen,BigDecimal.RoundingMode.HALF_UP).toDouble
     }
 
-    override def trunc(fieldValue:Double,pattern:String):Long={
+    override def trunc(fieldValue:Double,pattern:String):Any={
       math.floor(fieldValue).toLong
     }
 
@@ -368,24 +369,6 @@ object CommonFieldTransformer {
   }
   implicit object DecimalTransformField extends DecimalFieldTransformer
 
-  trait IntegerFieldTransformer extends CommonFieldTransformer[Integer] {
-    override def to_char (fieldValue: Integer,pattern:String):String={
-      if(StringUtils.isNotEmpty(pattern)) {
-        val newPattern=pattern.replace('9','#').replace('+',' ').replace('-',' ').trim
-        val format = new DecimalFormat(newPattern)
-        if(pattern.substring(0,1)=="+" || pattern.substring(0,1)=="-"){
-          if(fieldValue>0.0)
-            "+"+format.format(fieldValue)
-          else
-            format.format(fieldValue)
-        }else
-          format.format(fieldValue)
-      }else{
-        new DecimalFormat(valueFormat).format(fieldValue)
-      }
-    }
-  }
-  implicit object IntegerTransformField extends IntegerFieldTransformer
 
   trait LongFieldTransformer extends CommonFieldTransformer[Long] {
     override def to_char (fieldValue: Long,pattern:String):String={
@@ -433,7 +416,7 @@ object CommonFieldTransformer {
       ca.setTime(dateFormat.parse(to_char(fieldValue,"YYYY")+to_char(fieldValue,"MM")+"01"))
       ca.add(Calendar.MONTH,1)
       ca.add(Calendar.DAY_OF_MONTH,-1)
-      ca.getTime
+      new Date(ca.getTime.getTime)
     }
 
     override def length(fieldValue:Date):Int={

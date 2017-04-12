@@ -1,11 +1,9 @@
 package com.datahandle.load
 
-import java.io.{File, FileInputStream}
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util
-import java.util.Properties
-
-import com.boc.iff.ECCLogger
+import java.lang.Long
 import com.boc.iff.exception.StageInfoErrorException
 import com.boc.iff.model.{CDate, CDecimal, CInteger, IFFField, IFFFieldType, IFFSection}
 import com.config.SparkJobConfig
@@ -22,7 +20,7 @@ import org.springframework.beans.BeansException
 import org.springframework.context.support.GenericXmlApplicationContext
 import org.springframework.core.io.ByteArrayResource
 
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.mutable.ArrayBuffer
 
 /**
   * Created by scutlxj on 2017/2/9.
@@ -83,11 +81,11 @@ abstract class FileLoader extends Serializable{
       val array = new ArrayBuffer[Any]
       for (v <- 0 until fields.size) {
        if(StringUtils.isNotEmpty(rowData(v))) {
-          fields(v).typeInfo match {
-            case fieldType: CInteger => array += new Integer(rowData(v))
-            case fieldType: CDecimal => array += new java.lang.Double(rowData(v))
-            case fieldType: CDate => new SimpleDateFormat(fieldType.pattern).format(rowData(v))
-            case _ => array += rowData(v)
+         array += fields(v).typeInfo match {
+            case fieldType: CInteger => new Long(rowData(v))
+            case fieldType: CDecimal => new java.lang.Double(rowData(v))
+            case fieldType: CDate => new java.sql.Date(new SimpleDateFormat(fieldType.pattern).parse(rowData(v)).getTime)
+            case _ => rowData(v)
           }
         }else {
           array += null
@@ -97,8 +95,8 @@ abstract class FileLoader extends Serializable{
     }
 
   /*  val pro = new Properties
-    pro.load(new FileInputStream(stageAppContext.jobConfig.configPath))
-    val mapPartitionFun:(Iterator[String] => Iterator[Row])= { rs =>
+      pro.load(new FileInputStream(stageAppContext.jobConfig.configPath))
+      val mapPartitionFun:(Iterator[String] => Iterator[Row])= { rs =>
       val logger = new ECCLogger
       logger.configure(pro)
       logger.info("FileLoader","*************************FileLoader*****************************************8")
@@ -113,7 +111,7 @@ abstract class FileLoader extends Serializable{
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
       val tp = f.typeInfo match {
-        case fieldType: CInteger => DataTypes.IntegerType
+        case fieldType: CInteger => DataTypes.LongType
         case fieldType: CDecimal => DataTypes.DoubleType
         case fieldType: CDate => DataTypes.DateType
         case _ => DataTypes.StringType
@@ -130,8 +128,9 @@ abstract class FileLoader extends Serializable{
     val structFields = new util.ArrayList[StructField]()
     for(f <- fields) {
       val tp = f.typeInfo match {
-        case fieldType: CInteger => DataTypes.IntegerType
+        case fieldType: CInteger => DataTypes.LongType
         case fieldType: CDecimal => DataTypes.DoubleType
+        case fieldType: CDate => DataTypes.DateType
         case _ => DataTypes.StringType
       }
       structFields.add(DataTypes.createStructField(f.name.toUpperCase, tp, true))

@@ -1,6 +1,6 @@
 package com.datahandle
 
-import com.boc.iff.DFSUtils
+import com.boc.iff.{CommonFieldConvertorContext, DFSUtils}
 import com.boc.iff.exception.StageHandleException
 import com.boc.iff.model.IFFFieldType
 import com.context.{StageAppContext, StageRequest}
@@ -60,24 +60,23 @@ trait StageHandle[T<:StageRequest] {
 
     def execute(stRequest:StageRequest): Unit
 
-    protected def saveDebug(debugInfo:DebugInfo,df:DataFrame):Unit={
+    protected def saveDebug(debugInfo:DebugInfo,df:DataFrame,tableInfo:TableInfo):Unit={
+        import com.boc.iff.CommonFieldConvertorContext._
+        implicit val fieldConvertorContext = new CommonFieldConvertorContext(null, null, null)
         implicit val config = appContext.sparkContext.hadoopConfiguration
         DFSUtils.deleteDir(debugInfo.file)
         val newDF = df.limit(debugInfo.limit)
         val targetSeparator = debugInfo.delimiter
-        val rowToString = (x: Row) => {
-            val rowData = x.toSeq
-            val str = new StringBuffer()
-            var index = 0
-            for (v <- rowData) {
-                if(index>0){
-                    str.append(targetSeparator)
-                }
-                str.append(v)
-                index+=1
+        val fields = tableInfo.getBody.fields
+        val rowToString = (x:Row)=> {
+            val sb = new StringBuffer()
+            for(i<-0 until fields.size){
+                if(i>0)sb.append(targetSeparator)
+                sb.append(fields(i).objectToString(x(i)))
             }
-            str.toString
+            sb.toString
         }
+
         val rdd = newDF.rdd.map(rowToString)
         if("LOG".equals(debugInfo.method)){
 
