@@ -328,6 +328,12 @@ object CommonFieldTransformer {
         fValue=round(0-fieldValue,pattern)
         signSymbol = "-"
       }
+      if(patt.indexOf("9")>=0){
+        if(fieldValue < 0.0)
+          fValue=0-fieldValue
+        else
+          fValue=fieldValue
+      }     
       if(patt.indexOf(".")>0){
         val intPattLen = patt.indexOf(".")
         val intPatt = patt.substring(0,intPattLen)
